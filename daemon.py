@@ -25,7 +25,7 @@ Design notes:
     Clawpilot is still alive and relaunches it if not.
 
 Usage:
-    python soufleur.py run             # preferred entry point
+    python souffleur.py run             # preferred entry point
     python daemon.py                   # uses ./config.toml (auto-created)
     python daemon.py --config x.toml
 """

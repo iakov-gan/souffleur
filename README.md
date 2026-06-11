@@ -1,8 +1,8 @@
-# soufleur
+# souffleur
 
 Local, real-time **Microsoft Teams live-caption** capture for Windows.
 
-`soufleur` (French *souffleur* — a theatre prompter) reads the **Live Captions**
+`souffleur` (French *souffleur* — a theatre prompter) reads the **Live Captions**
 that the Teams desktop client already draws on *your* screen, straight from the
 Windows **UI Automation** (accessibility) tree, and prints them to the console
 in real time with speaker labels.
@@ -36,14 +36,14 @@ pip install -r requirements.txt
 
 ## Use
 
-`soufleur.py` has three subcommands. The default (no subcommand) is `capture`.
+`souffleur.py` has three subcommands. The default (no subcommand) is `capture`.
 
 1. Join your Teams meeting and **turn on live captions**.
-2. (Optional) Verify soufleur can see the captions:
+2. (Optional) Verify souffleur can see the captions:
 
    ```powershell
-   python soufleur.py doctor      # one-line readiness check
-   python soufleur.py discover    # detailed: lists windows + caption region
+   python souffleur.py doctor      # one-line readiness check
+   python souffleur.py discover    # detailed: lists windows + caption region
    ```
 
    `doctor` should report `Caption region : OK` and `discover` should report
@@ -52,7 +52,7 @@ pip install -r requirements.txt
 3. Start capturing:
 
    ```powershell
-   python soufleur.py             # same as: python soufleur.py capture
+   python souffleur.py             # same as: python souffleur.py capture
    ```
 
    Finalized caption lines (`[HH:MM:SS] Speaker: text`) stream to **stdout**;
@@ -60,10 +60,10 @@ pip install -r requirements.txt
    transcript:
 
    ```powershell
-   python soufleur.py > transcript.txt
+   python souffleur.py > transcript.txt
    ```
 
-   If captions aren't on yet, soufleur waits (forever by default) and starts as
+   If captions aren't on yet, souffleur waits (forever by default) and starts as
    soon as they appear. Press **Ctrl+C** to stop.
 
 ### Options (`capture`)
@@ -80,12 +80,12 @@ pip install -r requirements.txt
 ## How it works
 
 New Teams is a WebView2 (Chromium) app, so its DOM is exposed through UI
-Automation. soufleur:
+Automation. souffleur:
 
 1. Finds the Teams **meeting** window.
 2. Locates the **`Live Captions`** region (a `fui-Flex` group). Detection is
    **language-independent**: if the Teams UI language localizes the region's
-   label, soufleur falls back to the lowest common ancestor of the caption
+   label, souffleur falls back to the lowest common ancestor of the caption
    elements instead of matching the English word "caption".
 3. Reads each caption entry — a `fui-ChatMessageCompact__body` element whose two
    children are `[author, caption text]`.
@@ -97,12 +97,12 @@ Automation. soufleur:
    state — without losing transcript continuity — if the meeting goes away.
 
 If a future Teams update changes these element names, run
-`python soufleur.py discover --tree` to inspect the current tree and pass
+`python souffleur.py discover --tree` to inspect the current tree and pass
 `--container-name` / `--container-aid` explicitly.
 
-## Souffleur daemon (`soufleur.py run`) — transcript → Clawpilot on one hotkey
+## Souffleur daemon (`souffleur.py run`) — transcript → Clawpilot on one hotkey
 
-`soufleur.py run` (implemented in `daemon.py`) turns soufleur into a live
+`souffleur.py run` (implemented in `daemon.py`) turns souffleur into a live
 "souffleur": it reads the Teams
 transcript in the background and, on **one global hotkey**, pastes the latest
 transcript into the **current chat** of the **Clawpilot / Microsoft Scout**
@@ -117,8 +117,8 @@ fresh context. Refine by simply typing in Clawpilot as usual.
 ### Run
 
 ```powershell
-python soufleur.py run             # uses ./config.toml (auto-created on first run)
-python soufleur.py run -c my.toml
+python souffleur.py run             # uses ./config.toml (auto-created on first run)
+python souffleur.py run -c my.toml
 python daemon.py                   # equivalent: run the daemon directly
 ```
 
@@ -189,16 +189,16 @@ Auto-created with defaults on first run. Key settings:
 
 | File | Purpose |
 |------|---------|
-| `soufleur.py` | Main CLI entry: `capture` (default), `discover`, `doctor`, `run`. |
+| `souffleur.py` | Main CLI entry: `capture` (default), `discover`, `doctor`, `run`. |
 | `teams_ui.py` | Reusable transcript-capture core + `TranscriptReader` background thread. |
 | `scout.py` | `ScoutWriter` — drives Clawpilot/Scout via UI Automation (paste + Send). |
-| `daemon.py` | The souffleur daemon (`soufleur.py run`): transcript → Clawpilot on a global hotkey. |
+| `daemon.py` | The souffleur daemon (`souffleur.py run`): transcript → Clawpilot on a global hotkey. |
 | `config.toml` | Prompter configuration (auto-created). |
 | `requirements.txt` | Python dependency (`uiautomation`). |
 
 ## Limitations
 
-- Requires Live Captions to be turned on (soufleur reads Teams' captions; it does
+- Requires Live Captions to be turned on (souffleur reads Teams' captions; it does
   not transcribe audio itself). For a Teams-independent alternative, capture
   loopback audio (WASAPI) and run a local STT model such as whisper.cpp.
 - Caption accuracy is whatever Teams produces.

@@ -1,5 +1,5 @@
 """
-soufleur / soufleur.py  —  local, real-time Teams live-caption capture.
+souffleur / souffleur.py  —  local, real-time Teams live-caption capture.
 
 Reads Microsoft Teams *Live Captions* straight from the Windows UI Automation
 (accessibility) tree of the Teams window on this PC. No bot, no Graph API, no
@@ -10,11 +10,11 @@ PREREQUISITE: in the meeting, turn ON live captions:
     More (...) > Language and speech > Turn on live captions
 
 Quick start:
-    python soufleur.py                 # auto-detect and start tailing (capture)
-    python soufleur.py discover        # diagnose: show windows + caption region
-    python soufleur.py discover --tree # also dump the meeting window UIA subtree
-    python soufleur.py doctor          # one-shot "is everything OK?" check
-    python soufleur.py run             # daemon: transcript -> Clawpilot on a hotkey
+    python souffleur.py                 # auto-detect and start tailing (capture)
+    python souffleur.py discover        # diagnose: show windows + caption region
+    python souffleur.py discover --tree # also dump the meeting window UIA subtree
+    python souffleur.py doctor          # one-shot "is everything OK?" check
+    python souffleur.py run             # daemon: transcript -> Clawpilot on a hotkey
 
 The capture loop self-heals: it waits (forever by default) until live captions
 appear, and automatically re-acquires the caption region after a language
@@ -92,7 +92,7 @@ def run_capture(args) -> int:
     timeout = args.timeout if args.timeout and args.timeout > 0 else 0.0
     search_deadline = (time.monotonic() + timeout) if timeout else None
 
-    _eprint("soufleur: waiting for Teams live captions... (Ctrl+C to stop)")
+    _eprint("souffleur: waiting for Teams live captions... (Ctrl+C to stop)")
     try:
         while True:
             # --- SEARCHING: no usable container yet -------------------------
@@ -100,10 +100,10 @@ def run_capture(args) -> int:
                 container = acquire(args)
                 if container is None:
                     if search_deadline and time.monotonic() > search_deadline:
-                        _eprint("soufleur: timed out waiting for live captions.")
+                        _eprint("souffleur: timed out waiting for live captions.")
                         return 1
                     if not searching_announced:
-                        _eprint("soufleur: no live captions yet — turn them on "
+                        _eprint("souffleur: no live captions yet — turn them on "
                                 "(More > Language and speech). waiting...")
                         searching_announced = True
                     time.sleep(backoff)
@@ -114,7 +114,7 @@ def run_capture(args) -> int:
                 searching_announced = False
                 empty_polls = 0
                 name, aid, cls = _attrs(container)
-                _eprint(f"soufleur: capturing from "
+                _eprint(f"souffleur: capturing from "
                         f"[Class='{cls}' AID='{aid}' Name='{name[:40]}']")
 
             # --- CAPTURING --------------------------------------------------
@@ -132,7 +132,7 @@ def run_capture(args) -> int:
                     empty_polls = 0
                     fresh = acquire(args)
                     if fresh is None:
-                        _eprint("soufleur: caption region lost — re-searching...")
+                        _eprint("souffleur: caption region lost — re-searching...")
                         container = None
                         search_deadline = ((time.monotonic() + timeout)
                                            if timeout else None)
@@ -178,7 +178,7 @@ def run_capture(args) -> int:
         if live_active:
             sys.stderr.write("\r\033[K")  # wipe the live line on the way out
             sys.stderr.flush()
-        _eprint("\nsoufleur: stopped.")
+        _eprint("\nsouffleur: stopped.")
     return 0
 
 
@@ -217,11 +217,11 @@ def cmd_discover(args) -> int:
     rows = read_rows(container)
     print(f"  Caption entries currently in the region: {len(rows)}")
     if rows:
-        print("\n  Last few lines soufleur would capture:")
+        print("\n  Last few lines souffleur would capture:")
         for r in rows[-5:]:
             who = f"{r['speaker']}: " if r["speaker"] else ""
             print(f"    {who}{r['text'][:90]}")
-    print("\nLooks good. Run:  python soufleur.py")
+    print("\nLooks good. Run:  python souffleur.py")
     return 0
 
 
@@ -272,7 +272,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="soufleur",
+        prog="souffleur",
         description="Locally capture Microsoft Teams live captions via UI "
                     "Automation. Default action is 'capture'.")
     sub = p.add_subparsers(dest="cmd")
@@ -311,7 +311,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     # Default to the `capture` subcommand when none is given, so bare flags like
-    # `soufleur.py --show-live` keep working.
+    # `souffleur.py --show-live` keep working.
     known = {"capture", "discover", "doctor", "run", "-h", "--help"}
     if not argv or argv[0] not in known:
         argv = ["capture"] + argv
