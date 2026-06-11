@@ -1,0 +1,39 @@
+# souffleur prompter configuration.
+# Auto-created with these defaults if missing. Edit and restart the daemon.
+
+[hotkey]
+# Global hotkey that sends the latest transcript to Clawpilot.
+# Shorthand like "win+ctrl+alt" or "ctrl+f8" is accepted, as is pynput's
+# native "<cmd>+<ctrl>+<alt>" form. "win" maps to the Windows key.
+# Note: Ctrl+Shift is the Windows language-switch combo — avoid it.
+# A modifier-only chord (e.g. win+ctrl+alt) fires once per chord-hold; release
+# at least one key before pressing again to re-fire.
+combo = "win+ctrl+alt"
+# How close together (seconds) the chord keys must be pressed. A short sliding
+# window so a one-handed "rolling" press (keys landing a few ms apart) still
+# fires reliably without all keys being down in the exact same instant. Raise
+# it if presses still get missed; lower it to reduce accidental triggers.
+window = 0.25
+
+[clawpilot]
+exe = "C:/Program Files (x86)/Clawpilot/Clawpilot.exe"
+window_title = "Clawpilot"
+# Launch + foreground Clawpilot when the prompter starts.
+foreground_on_start = true
+
+[send]
+mode = "delta"            # "delta" = only new lines since last send; "full" = whole transcript
+max_chars = 12000         # cap payload; oldest lines trimmed, newest kept
+include_live = true       # include the in-progress (not yet finalized) caption line
+restore_clipboard = true  # restore previous clipboard after pasting
+wait_for_idle = true      # if Clawpilot is mid-answer, hold the press and send when it's free (vs. dropping it)
+idle_timeout = 90.0       # give up a held press after this many seconds still generating
+retry_interval = 1.0      # seconds between retries while waiting for Clawpilot to go idle
+# {payload} is replaced with the transcript text.
+template = "Here is a transcript of the meeting (or follow-up):\n'''\n{payload}\n'''\nFind the latest question(s) and answer as an expert."
+
+[capture]
+interval = 0.5            # transcript polling interval (seconds)
+
+[watchdog]
+interval = 5.0            # seconds between Clawpilot alive checks

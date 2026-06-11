@@ -1,0 +1,16 @@
+# Captured transcripts (may contain meeting content)
+captures/
+*.log
+*.err
+
+# uiautomation auto-generated debug log
+@AutomationLog.txt
+
+# Scratch / probe scripts
+_*.py
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
