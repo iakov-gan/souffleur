@@ -31,7 +31,23 @@ meetings you are entitled to capture.
 ## Install
 
 ```powershell
+git clone https://github.com/iakovgan_microsoft/souffleur.git
+cd souffleur
 pip install -r requirements.txt
+```
+
+## Quick start
+
+```powershell
+# 1. In your Teams meeting: More (...) → Language and speech → Turn on live captions
+# 2. (optional) check souffleur can see the captions
+python souffleur.py doctor
+
+# 3a. Run the daemon (default): transcript → Clawpilot on the Win+Ctrl+Alt hotkey
+python souffleur.py
+
+# 3b. ...or just tail the live captions to the console
+python souffleur.py capture
 ```
 
 ## Use
