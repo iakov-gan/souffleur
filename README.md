@@ -202,6 +202,11 @@ Clawpilot busy). Press **Ctrl+C** to quit.
 
 ### Behaviour notes
 
+- **Color-coded console**: each speaker is shown in a stable color derived from a
+  hash of their name (the same person is always the same color, in both the
+  daemon and `capture` output), while status messages are gray and errors red.
+  Coloring is automatic on a terminal and is turned off when output is
+  redirected to a file or when the `NO_COLOR` environment variable is set.
 - **Delta by default**: each press sends only lines added since the previous
   press (the whole transcript on the first press). Set `send.mode = "full"` to
   always send everything.
@@ -255,6 +260,7 @@ The code is a Python package (`souffleur/`) exposing the `souffleur` command.
 | `souffleur/cli.py` | Main CLI entry: `run` (daemon, default), `capture`, `discover`, `doctor`. |
 | `souffleur/teams_ui.py` | Reusable transcript-capture core + `TranscriptReader` background thread. |
 | `souffleur/scout.py` | `ScoutWriter` — drives Clawpilot/Scout via UI Automation (paste + Send). |
+| `souffleur/colors.py` | Stable per-speaker terminal colors + system/error coloring. |
 | `souffleur/daemon.py` | The Souffleur daemon (the `run` mode): transcript → Clawpilot on a global hotkey. |
 | `pyproject.toml` | Packaging + `souffleur` console-script entry point. |
 | `config.toml` | Prompter configuration (auto-created in the working directory). |

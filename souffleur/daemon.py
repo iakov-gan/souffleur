@@ -42,6 +42,7 @@ from pathlib import Path
 
 from .teams_ui import TranscriptReader
 from .scout import ScoutError, ScoutWriter
+from . import colors
 
 # config.toml in the current working directory (auto-created on first run).
 DEFAULT_CONFIG_PATH = Path("config.toml")
@@ -223,11 +224,11 @@ def _ts() -> str:
 
 
 def _log(msg: str) -> None:
-    CONSOLE.line(f"[{_ts()}] {msg}")
+    CONSOLE.line(colors.system(f"[{_ts()}] {msg}", colors.COLOR_STDOUT))
 
 
 def _err(msg: str) -> None:
-    CONSOLE.line(f"[{_ts()}] !! {msg}", err=True)
+    CONSOLE.line(colors.error(f"[{_ts()}] !! {msg}", colors.COLOR_STDERR), err=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -268,7 +269,8 @@ class Console:
             if len(shown) > cols - 1:
                 shown = shown[: cols - 2] + "…"
             pad = max(0, self._live_len - len(shown))
-            sys.stdout.write("\r" + shown + " " * pad)
+            sys.stdout.write("\r" + colors.caption(shown, colors.COLOR_STDOUT)
+                             + " " * pad)
             sys.stdout.flush()
             self._live_len = len(shown)
 
@@ -298,7 +300,10 @@ class Prompter:
         self.reader = TranscriptReader(
             interval=float(_cfg(cfg, "capture", "interval", 0.5)),
         )
-        self.reader.on_final = lambda line: CONSOLE.line(f"[{_ts()}] {line}")
+        self.reader.on_final = lambda line: CONSOLE.line(
+            f"{colors.dim('[' + _ts() + ']', colors.COLOR_STDOUT)} "
+            f"{colors.caption(line, colors.COLOR_STDOUT)}"
+        )
         self.reader.on_live = lambda text: CONSOLE.live(text)
 
         self.writer = ScoutWriter(

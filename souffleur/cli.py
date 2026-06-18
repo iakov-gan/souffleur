@@ -42,6 +42,7 @@ except Exception:
 
 import uiautomation as auto
 
+from . import colors
 # The caption-reading core now lives in teams_ui.py and is shared with the
 # daemon. Re-import the primitives the CLI commands below rely on.
 from .teams_ui import (
@@ -65,7 +66,8 @@ SEARCH_MAX = 3.0
 
 def _eprint(*args, **kwargs) -> None:
     """Status/heartbeat output goes to stderr so stdout stays caption-only."""
-    print(*args, file=sys.stderr, **kwargs)
+    msg = " ".join(str(a) for a in args)
+    print(colors.system(msg, colors.COLOR_STDERR), file=sys.stderr, **kwargs)
     sys.stderr.flush()
 
 
@@ -155,9 +157,11 @@ def run_capture(args) -> int:
                 live_active = False
                 last_live = ""  # force the live line to be redrawn afterwards
             for r in new_finals:
-                line = f"{r['speaker']}: {r['text']}" if r["speaker"] else r["text"]
+                who = colors.speaker(r["speaker"], colors.COLOR_STDOUT)
+                line = f"{who}: {r['text']}" if r["speaker"] else r["text"]
                 ts = datetime.now().strftime("%H:%M:%S")
-                print(f"[{ts}] {line}", flush=True)
+                print(f"{colors.dim('[' + ts + ']', colors.COLOR_STDOUT)} {line}",
+                      flush=True)
 
             if args.show_live and rows:
                 live = rows[-1]
@@ -170,7 +174,9 @@ def run_capture(args) -> int:
                     prefix = "    (live) "
                     width = shutil.get_terminal_size((120, 25)).columns
                     avail = max(20, width - len(prefix) - 1)
-                    sys.stderr.write(f"\r\033[K{prefix}{live_line[:avail]}")
+                    shown = colors.speaker_prefix(
+                        live_line[:avail], live["speaker"], colors.COLOR_STDERR)
+                    sys.stderr.write(f"\r\033[K{colors.dim(prefix, colors.COLOR_STDERR)}{shown}")
                     sys.stderr.flush()
                     live_active = True
 
@@ -222,7 +228,7 @@ def cmd_discover(args) -> int:
         for r in rows[-5:]:
             who = f"{r['speaker']}: " if r["speaker"] else ""
             print(f"    {who}{r['text'][:90]}")
-    print("\nLooks good. Run:  python souffleur.py")
+    print("\nLooks good. Run:  souffleur")
     return 0
 
 

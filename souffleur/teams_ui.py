@@ -2,7 +2,7 @@
 teams_ui.py — reusable Microsoft Teams live-caption reader (UI Automation).
 
 This module holds the language-independent, self-healing caption-capture core
-that used to live inside ``souffleur.py``. It exposes both:
+that used to live inside the original ``souffleur.py`` script. It exposes both:
 
   * the low-level primitives (find_container, read_rows, CaptionTracker, ...)
     that the ``souffleur`` CLI re-uses for its capture/discover/doctor commands;
