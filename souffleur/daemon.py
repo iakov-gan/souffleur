@@ -318,13 +318,21 @@ class Prompter:
         self.watchdog_interval = float(_cfg(cfg, "watchdog", "interval", 5.0))
 
         self.last_idx = 0
+        # The in-progress (not-yet-finalized) caption line captured at the exact
+        # instant the hotkey was pressed. Held until the send actually fires so
+        # a busy-wait (Clawpilot mid-answer) or a transient empty read can't drop
+        # the partial the user was looking at when they pressed.
+        self._pending_live: str | None = None
         self._fire = threading.Event()
         self._stop = threading.Event()
 
     # -- hotkey ------------------------------------------------------------- #
     def _on_hotkey(self) -> None:
-        # Runs in the HotkeyMonitor thread: do NOT touch UIA here.
+        # Runs in the HotkeyMonitor thread: do NOT touch UIA here. Reading the
+        # reader's cached live line is just a locked attribute read (no UIA), so
+        # we snapshot the partial *now* — at press time — not later at send time.
         _log("\u2328 hotkey detected")
+        self._pending_live = self.reader.latest_live()
         self._fire.set()
 
     # -- the send routine (main thread only) -------------------------------- #
@@ -340,10 +348,17 @@ class Prompter:
             else:
                 lines, new_idx = self.reader.get_delta(self.last_idx)
 
+            # Include the in-progress (not-yet-finalized) caption line. Prefer
+            # whatever is live right now; fall back to the partial captured at
+            # the moment the hotkey was pressed (self._pending_live), so a
+            # busy-wait delay or a transient empty read can't drop it. Skip it
+            # only when it would merely duplicate the last finalized line.
+            live_sent = False
             if self.include_live:
-                live = self.reader.latest_live()
-                if live:
+                live = self.reader.latest_live() or self._pending_live
+                if live and (not lines or lines[-1] != live):
                     lines = lines + [live]
+                    live_sent = True
 
             if not lines:
                 _log("[nothing new to send]")
@@ -355,7 +370,9 @@ class Prompter:
 
             self.writer.send(rendered)
             self.last_idx = new_idx
-            _log(f"[sent {len(lines)} line(s) / {len(payload)} chars]")
+            self._pending_live = None
+            _log(f"[sent {len(lines)} line(s) / {len(payload)} chars"
+                 f"{' +live partial' if live_sent else ''}]")
             return "sent"
         except ScoutError as exc:
             _err(f"send failed: {exc}")
