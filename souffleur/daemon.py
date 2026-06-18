@@ -25,9 +25,9 @@ Design notes:
     Clawpilot is still alive and relaunches it if not.
 
 Usage:
-    python souffleur.py run             # preferred entry point
-    python daemon.py                   # uses ./config.toml (auto-created)
-    python daemon.py --config x.toml
+    souffleur run                       # preferred entry point
+    python -m souffleur.daemon          # uses ./config.toml (auto-created)
+    python -m souffleur.daemon --config x.toml
 """
 from __future__ import annotations
 
@@ -40,10 +40,11 @@ import tomllib
 from datetime import datetime
 from pathlib import Path
 
-from teams_ui import TranscriptReader
-from scout import ScoutError, ScoutWriter
+from .teams_ui import TranscriptReader
+from .scout import ScoutError, ScoutWriter
 
-DEFAULT_CONFIG_PATH = Path(__file__).with_name("config.toml")
+# config.toml in the current working directory (auto-created on first run).
+DEFAULT_CONFIG_PATH = Path("config.toml")
 
 DEFAULT_CONFIG_TEXT = """\
 # souffleur prompter configuration.

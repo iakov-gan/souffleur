@@ -6,11 +6,18 @@ captures/
 # uiautomation auto-generated debug log
 @AutomationLog.txt
 
-# Scratch / probe scripts
+# Scratch / probe scripts (single leading underscore), but keep dunder files
 _*.py
+!__init__.py
+!__main__.py
 
 # Python
 __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Packaging build artifacts
+*.egg-info/
+build/
+dist/

@@ -35,26 +35,33 @@ meetings you are entitled to capture.
 ```powershell
 git clone https://github.com/iakovgan_microsoft/souffleur.git
 cd souffleur
-pip install -r requirements.txt
+pip install .          # installs the `souffleur` command + dependencies
 ```
+
+Use `pip install -e .` for an editable/development install. This puts a
+`souffleur` command on your PATH; you can also run the package without
+installing via `python -m souffleur` (after `pip install -r requirements.txt`).
 
 ## Quick start
 
 ```powershell
 # 1. In your Teams meeting: More (...) → Language and speech → Turn on live captions
 # 2. (optional) check Souffleur can see the captions
-python souffleur.py doctor
+souffleur doctor
 
 # 3a. Run the daemon (default): transcript → Clawpilot on the Win+Ctrl+Alt hotkey
-python souffleur.py
+souffleur
 
 # 3b. ...or just tail the live captions to the console
-python souffleur.py capture
+souffleur capture
 ```
+
+> All commands below use the installed `souffleur` entry point. If you didn't
+> install it, replace `souffleur` with `python -m souffleur`.
 
 ## Use
 
-Souffleur's main mode is the **daemon** (`python souffleur.py`): it watches the
+Souffleur's main mode is the **daemon** (`souffleur`): it watches the
 Teams transcript in the background and, on **one global hotkey**, pastes the
 latest lines into the **Clawpilot / Microsoft Scout** chat and presses Send — so
 you get a live, in-context answer while you talk.
@@ -70,7 +77,7 @@ you get a live, in-context answer while you talk.
 ### 2. Start the daemon
 
 ```powershell
-python souffleur.py
+souffleur
 ```
 
 This launches Clawpilot if it isn't open, brings it to the front, starts the
@@ -89,7 +96,7 @@ The console logs `⌨ hotkey detected` for every press (followed by
 `[sent N lines …]`, or a reason such as `[nothing new to send]`). Press
 **Ctrl+C** to quit.
 
-See [Souffleur daemon](#souffleur-daemon-souffleurpy-run--transcript--clawpilot-on-one-hotkey)
+See [Souffleur daemon](#souffleur-daemon-the-run-mode--transcript--clawpilot-on-one-hotkey)
 for behaviour notes and the `config.toml` reference (hotkey, send template, etc.).
 
 ## Advanced use
@@ -98,10 +105,10 @@ The other subcommands are for diagnostics or plain transcript capture (no
 daemon, no Clawpilot):
 
 ```powershell
-python souffleur.py doctor          # one-line readiness check
-python souffleur.py discover        # lists windows + caption region
-python souffleur.py discover --tree # dump the meeting window UIA subtree
-python souffleur.py capture         # tail live captions to the console
+souffleur doctor          # one-line readiness check
+souffleur discover        # lists windows + caption region
+souffleur discover --tree # dump the meeting window UIA subtree
+souffleur capture         # tail live captions to the console
 ```
 
 `doctor` should report `Caption region : OK`; `discover` should report
@@ -113,7 +120,7 @@ the transcript. If captions aren't on yet, it waits (forever by default) and
 starts as soon as they appear; press **Ctrl+C** to stop.
 
 ```powershell
-python souffleur.py capture > transcript.txt
+souffleur capture > transcript.txt
 ```
 
 ### Options (`capture`)
@@ -147,12 +154,12 @@ Automation. Souffleur:
    state — without losing transcript continuity — if the meeting goes away.
 
 If a future Teams update changes these element names, run
-`python souffleur.py discover --tree` to inspect the current tree and pass
+`souffleur discover --tree` to inspect the current tree and pass
 `--container-name` / `--container-aid` explicitly.
 
-## Souffleur daemon (`souffleur.py run`) — transcript → Clawpilot on one hotkey
+## Souffleur daemon (the `run` mode) — transcript → Clawpilot on one hotkey
 
-`souffleur.py run` (implemented in `daemon.py`) turns Souffleur into a live
+The `run` mode (implemented in `souffleur/daemon.py`) turns Souffleur into a live
 "souffleur": it reads the Teams
 transcript in the background and, on **one global hotkey**, pastes the latest
 transcript into the **current chat** of the **Clawpilot / Microsoft Scout**
@@ -167,10 +174,11 @@ fresh context. Refine by simply typing in Clawpilot as usual.
 ### Run
 
 ```powershell
-python souffleur.py                 # default: runs the daemon (same as `run`)
-python souffleur.py run             # explicit; uses ./config.toml (auto-created on first run)
-python souffleur.py run -c my.toml
-python daemon.py                   # equivalent: run the daemon directly
+souffleur                          # default: runs the daemon (same as `run`)
+souffleur run                      # explicit; uses ./config.toml (auto-created on first run)
+souffleur run -c my.toml           # custom config
+python -m souffleur                # equivalent, without installing the command
+python -m souffleur.daemon         # run the daemon module directly
 ```
 
 On start it launches Clawpilot (if not already open), brings it to the front,
@@ -238,14 +246,19 @@ Auto-created with defaults on first run. Key settings:
 
 ## Files
 
+The code is a Python package (`souffleur/`) exposing the `souffleur` command.
+
 | File | Purpose |
 |------|---------|
-| `souffleur.py` | Main CLI entry: `run` (daemon, default), `capture`, `discover`, `doctor`. |
-| `teams_ui.py` | Reusable transcript-capture core + `TranscriptReader` background thread. |
-| `scout.py` | `ScoutWriter` — drives Clawpilot/Scout via UI Automation (paste + Send). |
-| `daemon.py` | The Souffleur daemon (`souffleur.py run`): transcript → Clawpilot on a global hotkey. |
-| `config.toml` | Prompter configuration (auto-created). |
-| `requirements.txt` | Python dependency (`uiautomation`). |
+| `souffleur/__init__.py` | Package init; exposes `main` and `__version__`. |
+| `souffleur/__main__.py` | Enables `python -m souffleur`. |
+| `souffleur/cli.py` | Main CLI entry: `run` (daemon, default), `capture`, `discover`, `doctor`. |
+| `souffleur/teams_ui.py` | Reusable transcript-capture core + `TranscriptReader` background thread. |
+| `souffleur/scout.py` | `ScoutWriter` — drives Clawpilot/Scout via UI Automation (paste + Send). |
+| `souffleur/daemon.py` | The Souffleur daemon (the `run` mode): transcript → Clawpilot on a global hotkey. |
+| `pyproject.toml` | Packaging + `souffleur` console-script entry point. |
+| `config.toml` | Prompter configuration (auto-created in the working directory). |
+| `requirements.txt` | Runtime dependency (`uiautomation`); mirrors `pyproject.toml`. |
 
 ## Limitations
 

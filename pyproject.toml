@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "souffleur"
+version = "0.1.0"
+description = "Local, real-time Microsoft Teams live-caption capture for Windows that pushes the live transcript to Microsoft Scout (Clawpilot) on a hotkey for fast, in-context answers."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "uiautomation>=2.0.20",
+]
+
+[project.scripts]
+souffleur = "souffleur.cli:main"
+
+[tool.setuptools]
+packages = ["souffleur"]

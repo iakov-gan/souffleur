@@ -1,5 +1,5 @@
 """
-souffleur / souffleur.py  —  local, real-time Teams live-caption capture.
+souffleur.cli  —  local, real-time Teams live-caption capture.
 
 Reads Microsoft Teams *Live Captions* straight from the Windows UI Automation
 (accessibility) tree of the Teams window on this PC. No bot, no Graph API, no
@@ -9,13 +9,13 @@ text your own Teams client is already drawing on your screen.
 PREREQUISITE: in the meeting, turn ON live captions:
     More (...) > Language and speech > Turn on live captions
 
-Quick start:
-    python souffleur.py                 # daemon: transcript -> Clawpilot on a hotkey (default)
-    python souffleur.py capture         # just tail live captions to stdout
-    python souffleur.py discover        # diagnose: show windows + caption region
-    python souffleur.py discover --tree # also dump the meeting window UIA subtree
-    python souffleur.py doctor          # one-shot "is everything OK?" check
-    python souffleur.py run             # explicit form of the default daemon mode
+Quick start (use ``souffleur`` once installed, or ``python -m souffleur``):
+    souffleur                 # daemon: transcript -> Clawpilot on a hotkey (default)
+    souffleur capture         # just tail live captions to stdout
+    souffleur discover        # diagnose: show windows + caption region
+    souffleur discover --tree # also dump the meeting window UIA subtree
+    souffleur doctor          # one-shot "is everything OK?" check
+    souffleur run             # explicit form of the default daemon mode
 
 The capture loop self-heals: it waits (forever by default) until live captions
 appear, and automatically re-acquires the caption region after a language
@@ -44,7 +44,7 @@ import uiautomation as auto
 
 # The caption-reading core now lives in teams_ui.py and is shared with the
 # daemon. Re-import the primitives the CLI commands below rely on.
-from teams_ui import (
+from .teams_ui import (
     CAPTION_HINTS,
     BODY_CLASS,
     CaptionTracker,
@@ -267,7 +267,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     _print_options_banner()
     # Imported lazily so `capture`/`discover`/`doctor` never pull in the Scout
     # writer or Clawpilot automation stack.
-    import daemon
+    from . import daemon
     cfg = daemon.load_config(args.config or daemon.DEFAULT_CONFIG_PATH)
     return daemon.Prompter(cfg).run()
 
@@ -276,7 +276,7 @@ def _print_options_banner() -> None:
     """Print a short reminder of the available modes when the daemon starts."""
     print(
         "\n"
-        "souffleur — daemon mode (default). Available commands:\n"
+        "Souffleur — daemon mode (default). Available commands (souffleur <cmd>):\n"
         "  run       (default)  daemon: Teams transcript -> Clawpilot on a hotkey\n"
         "  capture              just tail live captions to stdout\n"
         "  discover             diagnose windows + caption region (--tree for subtree)\n"
