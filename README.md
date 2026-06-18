@@ -36,8 +36,11 @@ pip install -U git+https://github.com/iakov-gan/souffleur.git
 
 1. Join your Teams meeting and **turn on live captions**
    (**More (...) → Language and speech → Turn on live captions**).
+   
+   <img width="585" height="487" alt="image" src="https://github.com/user-attachments/assets/727ae962-cce5-44fa-993b-0c3cea2f547a" />
 
-2. Run in your PS terminal:
+
+3. Run in your PS terminal:
     ```powershell
     souffleur
     ```
@@ -46,7 +49,7 @@ pip install -U git+https://github.com/iakov-gan/souffleur.git
     python -m souffleur
     ```
 
-3. Press ALT+CTLR+WIN anywhere to send the context to MS Scout/Clawpilot
+4. Press ALT+CTLR+WIN anywhere to send the context to MS Scout/Clawpilot
 
 ## Advanced Use
 
