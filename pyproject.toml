@@ -16,5 +16,8 @@ dependencies = [
 [project.scripts]
 souffleur = "souffleur.cli:main"
 
+[project.urls]
+Homepage = "https://github.com/iakov-gan/souffleur"
+
 [tool.setuptools]
 packages = ["souffleur"]

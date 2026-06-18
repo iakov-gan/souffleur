@@ -32,15 +32,23 @@ meetings you are entitled to capture.
 
 ## Install
 
+Install straight from GitHub with pip (gives you the `souffleur` command):
+
 ```powershell
-git clone https://github.com/iakovgan_microsoft/souffleur.git
+pip install git+https://github.com/iakov-gan/souffleur.git
+```
+
+Or clone and install locally (use `pip install -e .` for a development install):
+
+```powershell
+git clone https://github.com/iakov-gan/souffleur.git
 cd souffleur
 pip install .          # installs the `souffleur` command + dependencies
 ```
 
-Use `pip install -e .` for an editable/development install. This puts a
-`souffleur` command on your PATH; you can also run the package without
-installing via `python -m souffleur` (after `pip install -r requirements.txt`).
+Either way you get a `souffleur` command on your PATH; you can also run the
+package without installing the command via `python -m souffleur` (after
+`pip install -r requirements.txt`).
 
 ## Quick start
 
