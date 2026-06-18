@@ -52,36 +52,67 @@ python souffleur.py capture
 
 ## Use
 
-`souffleur.py` has four subcommands. The default (no subcommand) is `run` (the
-daemon — see [Souffleur daemon](#souffleur-daemon-souffleurpy-run--transcript--clawpilot-on-one-hotkey) below). For plain caption capture, use `capture`.
+souffleur's main mode is the **daemon** (`python souffleur.py`): it watches the
+Teams transcript in the background and, on **one global hotkey**, pastes the
+latest lines into the **Clawpilot / Microsoft Scout** chat and presses Send — so
+you get a live, in-context answer while you talk.
 
-1. Join your Teams meeting and **turn on live captions**.
-2. (Optional) Verify souffleur can see the captions:
+### 1. Prepare
 
-   ```powershell
-   python souffleur.py doctor      # one-line readiness check
-   python souffleur.py discover    # detailed: lists windows + caption region
-   ```
+1. Open **Clawpilot** and prime the chat once with your instruction/persona, e.g.
+   *"You are an expert interviewer; read the transcript and suggest the best next
+   answer to the latest question."*
+2. Join your Teams meeting and **turn on live captions**
+   (**More (...) → Language and speech → Turn on live captions**).
 
-   `doctor` should report `Caption region : OK` and `discover` should report
-   `Found: ... Name='Live Captions'` and preview a few lines.
+### 2. Start the daemon
 
-3. Start capturing:
+```powershell
+python souffleur.py
+```
 
-   ```powershell
-   python souffleur.py capture     # plain caption capture (no daemon)
-   ```
+This launches Clawpilot if it isn't open, brings it to the front, starts the
+transcript reader, registers the hotkey, and prints
+`ready. Press the hotkey to send the transcript.`
 
-   Finalized caption lines (`[HH:MM:SS] Speaker: text`) stream to **stdout**;
-   status/heartbeat messages go to **stderr**, so you can redirect just the
-   transcript:
+### 3. Press the hotkey
 
-   ```powershell
-   python souffleur.py capture > transcript.txt
-   ```
+While you speak/listen, press **Win+Ctrl+Alt** whenever you want an answer (all
+three modifiers sit in the bottom-left corner — a one-handed chord that avoids
+the Ctrl+Shift language switcher).
 
-   If captions aren't on yet, souffleur waits (forever by default) and starts as
-   soon as they appear. Press **Ctrl+C** to stop.
+On each press, the **new** transcript lines since your last press are pasted into
+the current Clawpilot chat and sent, and the answer streams back in Clawpilot.
+The console logs `⌨ hotkey detected` for every press (followed by
+`[sent N lines …]`, or a reason such as `[nothing new to send]`). Press
+**Ctrl+C** to quit.
+
+See [Souffleur daemon](#souffleur-daemon-souffleurpy-run--transcript--clawpilot-on-one-hotkey)
+for behaviour notes and the `config.toml` reference (hotkey, send template, etc.).
+
+## Advanced use
+
+The other subcommands are for diagnostics or plain transcript capture (no
+daemon, no Clawpilot):
+
+```powershell
+python souffleur.py doctor          # one-line readiness check
+python souffleur.py discover        # lists windows + caption region
+python souffleur.py discover --tree # dump the meeting window UIA subtree
+python souffleur.py capture         # tail live captions to the console
+```
+
+`doctor` should report `Caption region : OK`; `discover` should report
+`Found: ... Name='Live Captions'` and preview a few lines.
+
+With `capture`, finalized caption lines (`[HH:MM:SS] Speaker: text`) stream to
+**stdout** and status/heartbeat messages to **stderr**, so you can redirect just
+the transcript. If captions aren't on yet, it waits (forever by default) and
+starts as soon as they appear; press **Ctrl+C** to stop.
+
+```powershell
+python souffleur.py capture > transcript.txt
+```
 
 ### Options (`capture`)
 
