@@ -35,7 +35,7 @@ meetings you are entitled to capture.
 Install straight from GitHub with pip (gives you the `souffleur` command):
 
 ```powershell
-pip install git+https://github.com/iakov-gan/souffleur.git
+pip install -U git+https://github.com/iakov-gan/souffleur.git
 ```
 
 Either way you get a `souffleur` command on your PATH; you can also run the
