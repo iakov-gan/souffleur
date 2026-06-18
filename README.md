@@ -1,13 +1,18 @@
 # Souffleur
 
-Local, real-time **Microsoft Teams live-caption** capture for Windows that
+Souffleur (French *souffleur* — a theatre prompter) - local, real-time **Microsoft Teams live-caption** capture for Windows that
 **pushes the live transcript / captions to Microsoft Scout (Clawpilot) to get
-fast answers in real time** — on a single hotkey.
+fast answers in real time** on a single hotkey.
 
-Souffleur (French *souffleur* — a theatre prompter) reads the **Live Captions**
-that the Teams desktop client already draws on *your* screen, straight from the
-Windows **UI Automation** (accessibility) tree, and prints them to the console
-in real time with speaker labels.
+```mermaid
+flowchart LR
+    K[⌨️ ALT+CTRL+WIN] -->|hotkey| B
+    subgraph Local["🖥️ Local PC"]
+        direction LR
+        A[Microsoft Teams] --> B[Souffleur] --> C[Microsoft Scout]
+    end
+
+```
 
 - ✅ 100% local — runs as a normal app on your PC
 - ✅ No bot, no meeting join, no Microsoft Graph, no recording uploaded anywhere
