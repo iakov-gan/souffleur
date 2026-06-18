@@ -36,7 +36,8 @@ pip install -r requirements.txt
 
 ## Use
 
-`souffleur.py` has three subcommands. The default (no subcommand) is `capture`.
+`souffleur.py` has four subcommands. The default (no subcommand) is `run` (the
+daemon — see [Souffleur daemon](#souffleur-daemon-souffleurpy-run--transcript--clawpilot-on-one-hotkey) below). For plain caption capture, use `capture`.
 
 1. Join your Teams meeting and **turn on live captions**.
 2. (Optional) Verify souffleur can see the captions:
@@ -52,7 +53,7 @@ pip install -r requirements.txt
 3. Start capturing:
 
    ```powershell
-   python souffleur.py             # same as: python souffleur.py capture
+   python souffleur.py capture     # plain caption capture (no daemon)
    ```
 
    Finalized caption lines (`[HH:MM:SS] Speaker: text`) stream to **stdout**;
@@ -60,7 +61,7 @@ pip install -r requirements.txt
    transcript:
 
    ```powershell
-   python souffleur.py > transcript.txt
+   python souffleur.py capture > transcript.txt
    ```
 
    If captions aren't on yet, souffleur waits (forever by default) and starts as
@@ -117,7 +118,8 @@ fresh context. Refine by simply typing in Clawpilot as usual.
 ### Run
 
 ```powershell
-python souffleur.py run             # uses ./config.toml (auto-created on first run)
+python souffleur.py                 # default: runs the daemon (same as `run`)
+python souffleur.py run             # explicit; uses ./config.toml (auto-created on first run)
 python souffleur.py run -c my.toml
 python daemon.py                   # equivalent: run the daemon directly
 ```
@@ -189,7 +191,7 @@ Auto-created with defaults on first run. Key settings:
 
 | File | Purpose |
 |------|---------|
-| `souffleur.py` | Main CLI entry: `capture` (default), `discover`, `doctor`, `run`. |
+| `souffleur.py` | Main CLI entry: `run` (daemon, default), `capture`, `discover`, `doctor`. |
 | `teams_ui.py` | Reusable transcript-capture core + `TranscriptReader` background thread. |
 | `scout.py` | `ScoutWriter` — drives Clawpilot/Scout via UI Automation (paste + Send). |
 | `daemon.py` | The souffleur daemon (`souffleur.py run`): transcript → Clawpilot on a global hotkey. |

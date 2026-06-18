@@ -10,11 +10,12 @@ PREREQUISITE: in the meeting, turn ON live captions:
     More (...) > Language and speech > Turn on live captions
 
 Quick start:
-    python souffleur.py                 # auto-detect and start tailing (capture)
+    python souffleur.py                 # daemon: transcript -> Clawpilot on a hotkey (default)
+    python souffleur.py capture         # just tail live captions to stdout
     python souffleur.py discover        # diagnose: show windows + caption region
     python souffleur.py discover --tree # also dump the meeting window UIA subtree
     python souffleur.py doctor          # one-shot "is everything OK?" check
-    python souffleur.py run             # daemon: transcript -> Clawpilot on a hotkey
+    python souffleur.py run             # explicit form of the default daemon mode
 
 The capture loop self-heals: it waits (forever by default) until live captions
 appear, and automatically re-acquires the caption region after a language
@@ -263,6 +264,7 @@ def _add_target_args(sp: argparse.ArgumentParser) -> None:
 
 def cmd_run(args: argparse.Namespace) -> int:
     """Launch the souffleur daemon (transcript -> Clawpilot on a hotkey)."""
+    _print_options_banner()
     # Imported lazily so `capture`/`discover`/`doctor` never pull in the Scout
     # writer or Clawpilot automation stack.
     import daemon
@@ -270,14 +272,28 @@ def cmd_run(args: argparse.Namespace) -> int:
     return daemon.Prompter(cfg).run()
 
 
+def _print_options_banner() -> None:
+    """Print a short reminder of the available modes when the daemon starts."""
+    print(
+        "\n"
+        "souffleur — daemon mode (default). Available commands:\n"
+        "  run       (default)  daemon: Teams transcript -> Clawpilot on a hotkey\n"
+        "  capture              just tail live captions to stdout\n"
+        "  discover             diagnose windows + caption region (--tree for subtree)\n"
+        "  doctor               one-shot readiness check\n"
+        "  -h / --help          full option reference\n"
+        "Daemon flags: -c/--config PATH  (config.toml: sets hotkey, template, etc.)\n"
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="souffleur",
         description="Locally capture Microsoft Teams live captions via UI "
-                    "Automation. Default action is 'capture'.")
+                    "Automation. Default action is 'run' (the daemon).")
     sub = p.add_subparsers(dest="cmd")
 
-    cap = sub.add_parser("capture", help="Tail live captions to stdout (default).")
+    cap = sub.add_parser("capture", help="Tail live captions to stdout.")
     _add_target_args(cap)
     cap.add_argument("--interval", type=float, default=0.25,
                      help="Polling interval in seconds (default 0.25).")
@@ -300,7 +316,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     rn = sub.add_parser(
         "run",
-        help="Run the souffleur daemon: transcript -> Clawpilot on a hotkey.")
+        help="Run the souffleur daemon: transcript -> Clawpilot on a hotkey "
+             "(default).")
     rn.add_argument("-c", "--config", type=Path, default=None,
                     help="path to config.toml (default: ./config.toml).")
     rn.set_defaults(func=cmd_run)
@@ -310,11 +327,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    # Default to the `capture` subcommand when none is given, so bare flags like
-    # `souffleur.py --show-live` keep working.
+    # Default to the `run` daemon subcommand when none is given. Bare flags that
+    # aren't a known subcommand are routed to `run` too (e.g. `--config x`).
     known = {"capture", "discover", "doctor", "run", "-h", "--help"}
     if not argv or argv[0] not in known:
-        argv = ["capture"] + argv
+        argv = ["run"] + argv
     args = build_parser().parse_args(argv)
     return args.func(args)
 
