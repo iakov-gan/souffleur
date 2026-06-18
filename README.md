@@ -38,32 +38,16 @@ Install straight from GitHub with pip (gives you the `souffleur` command):
 pip install git+https://github.com/iakov-gan/souffleur.git
 ```
 
-Or clone and install locally (use `pip install -e .` for a development install):
-
-```powershell
-git clone https://github.com/iakov-gan/souffleur.git
-cd souffleur
-pip install .          # installs the `souffleur` command + dependencies
-```
-
 Either way you get a `souffleur` command on your PATH; you can also run the
-package without installing the command via `python -m souffleur` (after
-`pip install -r requirements.txt`).
-
-## Quick start
+package without installing the command via `python -m souffleur` .
 
 ```powershell
-# 1. In your Teams meeting: More (...) → Language and speech → Turn on live captions
-# 2. (optional) check Souffleur can see the captions
-souffleur doctor
-
-# 3a. Run the daemon (default): transcript → Clawpilot on the Win+Ctrl+Alt hotkey
 souffleur
-
-# 3b. ...or just tail the live captions to the console
-souffleur capture
 ```
 
+```powershell
+python -m souffleur
+```
 > All commands below use the installed `souffleur` entry point. If you didn't
 > install it, replace `souffleur` with `python -m souffleur`.
 
