@@ -11,17 +11,7 @@ in real time with speaker labels.
 
 - ✅ 100% local — runs as a normal app on your PC
 - ✅ No bot, no meeting join, no Microsoft Graph, no recording uploaded anywhere
-- ✅ Invisible to the tenant — it only *reads text already rendered on your screen*
-- ✅ Captures speaker names and any language Teams transcribes (e.g. Russian, etc.)
-- ✅ **Self-healing** — survives caption-language changes, panel toggles and
-  meeting restarts, and waits for captions to come on without exiting
-
-## ⚠️ Before you use it
-
-Capturing/transcribing a meeting can require the consent of participants and may
-be governed by law and by your organization's policy. **You are responsible for
-confirming you are allowed to capture a given meeting.** Use this only for
-meetings you are entitled to capture.
+- ✅ Invisible to the tenant - it only *reads text already rendered on your screen*
 
 ## Requirements
 
@@ -32,26 +22,31 @@ meetings you are entitled to capture.
 
 ## Install
 
-Install straight from GitHub with pip (gives you the `souffleur` command):
-
+Install straight from GitHub with pip:
 ```powershell
 pip install -U git+https://github.com/iakov-gan/souffleur.git
 ```
 
-Either way you get a `souffleur` command on your PATH; you can also run the
-package without installing the command via `python -m souffleur` .
+## Use
 
-```powershell
-souffleur
-```
+1. Join your Teams meeting and **turn on live captions**
+   (**More (...) → Language and speech → Turn on live captions**).
 
-```powershell
-python -m souffleur
-```
+2. Run in your PS terminal:
+    ```powershell
+    souffleur
+    ```
+    or
+    ```powershell
+    python -m souffleur
+    ```
+
+3. Press ALT+CTLR+WIN anywhere to send the context to MS Scout/Clawpilot
+
+## Advanced Use
+
 > All commands below use the installed `souffleur` entry point. If you didn't
 > install it, replace `souffleur` with `python -m souffleur`.
-
-## Use
 
 Souffleur's main mode is the **daemon** (`souffleur`): it watches the
 Teams transcript in the background and, on **one global hotkey**, pastes the
@@ -241,22 +236,6 @@ Auto-created with defaults on first run. Key settings:
 | `capture.interval` | `0.5` | Transcript polling interval (s). |
 | `watchdog.interval` | `5.0` | Clawpilot alive-check interval (s). |
 
-## Files
-
-The code is a Python package (`souffleur/`) exposing the `souffleur` command.
-
-| File | Purpose |
-|------|---------|
-| `souffleur/__init__.py` | Package init; exposes `main` and `__version__`. |
-| `souffleur/__main__.py` | Enables `python -m souffleur`. |
-| `souffleur/cli.py` | Main CLI entry: `run` (daemon, default), `capture`, `discover`, `doctor`. |
-| `souffleur/teams_ui.py` | Reusable transcript-capture core + `TranscriptReader` background thread. |
-| `souffleur/scout.py` | `ScoutWriter` — drives Clawpilot/Scout via UI Automation (paste + Send). |
-| `souffleur/colors.py` | Stable per-speaker terminal colors + system/error coloring. |
-| `souffleur/daemon.py` | The Souffleur daemon (the `run` mode): transcript → Clawpilot on a global hotkey. |
-| `pyproject.toml` | Packaging + `souffleur` console-script entry point. |
-| `config.toml` | Prompter configuration (auto-created in the working directory). |
-| `requirements.txt` | Runtime dependency (`uiautomation`); mirrors `pyproject.toml`. |
 
 ## Limitations
 
@@ -265,3 +244,10 @@ The code is a Python package (`souffleur/`) exposing the `souffleur` command.
   loopback audio (WASAPI) and run a local STT model such as whisper.cpp.
 - Caption accuracy is whatever Teams produces.
 - Element names are Teams-version dependent (see "How it works").
+
+## ⚠️ Before you use it
+
+Capturing/transcribing a meeting can require the consent of participants and may
+be governed by law and by your organization's policy. **You are responsible for
+confirming you are allowed to capture a given meeting.** Use this only for
+meetings you are entitled to capture.
