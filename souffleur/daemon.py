@@ -21,8 +21,9 @@ Design notes:
     and is immune to hook timeouts and GIL timing.
   * The hotkey thread does NO UI work — it only signals the main thread, which
     performs every Clawpilot UIA action. This serializes UIA.
-  * The main loop doubles as a watchdog: between hotkey fires it checks that
-    Clawpilot is still alive and relaunches it if not.
+  * Clawpilot is NOT monitored in the background. It is checked only on a hotkey
+    press: if it isn't running it is launched, otherwise it is just brought to
+    the front — then the transcript is sent (even if Clawpilot is mid-answer).
 
 Usage:
     souffleur run                       # preferred entry point
@@ -68,16 +69,10 @@ mode = "delta"
 max_chars = 12000
 include_live = true
 restore_clipboard = true
-wait_for_idle = true
-idle_timeout = 90.0
-retry_interval = 1.0
 template = "Here is a transcript of the meeting (or follow-up):\\n'''\\n{payload}\\n'''\\nFind the latest question(s) and answer as an expert."
 
 [capture]
 interval = 0.5
-
-[watchdog]
-interval = 5.0
 """
 
 TRIM_MARKER = "...[earlier transcript trimmed]...\n"
@@ -291,11 +286,6 @@ class Prompter:
                                  "Here is a transcript of the meeting (or follow-up):\n"
                                  "'''\n{payload}\n'''\n"
                                  "Find the latest question(s) and answer as an expert."))
-        # When Clawpilot is mid-answer, hold the request and dispatch it the
-        # moment it goes idle instead of dropping the press.
-        self.wait_for_idle = bool(_cfg(cfg, "send", "wait_for_idle", True))
-        self.idle_timeout = float(_cfg(cfg, "send", "idle_timeout", 90.0))
-        self.retry_interval = float(_cfg(cfg, "send", "retry_interval", 1.0))
 
         self.reader = TranscriptReader(
             interval=float(_cfg(cfg, "capture", "interval", 0.5)),
@@ -315,7 +305,6 @@ class Prompter:
         self.foreground_on_start = bool(
             _cfg(cfg, "clawpilot", "foreground_on_start", True)
         )
-        self.watchdog_interval = float(_cfg(cfg, "watchdog", "interval", 5.0))
 
         self.last_idx = 0
         # The in-progress (not-yet-finalized) caption line captured at the exact
@@ -337,11 +326,12 @@ class Prompter:
 
     # -- the send routine (main thread only) -------------------------------- #
     def _do_send(self) -> str:
-        """Attempt one send. Returns a status: 'busy', 'sent', 'nothing', 'error'."""
-        try:
-            if self.writer.is_generating():
-                return "busy"
+        """Attempt one send. Returns a status: 'sent', 'nothing', 'error'.
 
+        The transcript is pushed even if Clawpilot is mid-answer — the send
+        routine pastes into the composer and submits without touching Stop.
+        """
+        try:
             if self.mode == "full":
                 lines = self.reader.get_full()
                 new_idx = len(lines)
@@ -394,17 +384,6 @@ class Prompter:
             tail = tail[nl + 1:]
         return TRIM_MARKER + tail
 
-    # -- watchdog ----------------------------------------------------------- #
-    def _watchdog(self) -> None:
-        try:
-            if not self.writer.is_running():
-                _log("[clawpilot not running — relaunching]")
-                self.writer.ensure_running()
-                self.writer.bring_to_front()
-                _log("[clawpilot relaunched]")
-        except Exception as exc:
-            _err(f"watchdog error: {exc!r}")
-
     # -- run ---------------------------------------------------------------- #
     def run(self) -> int:
         combo_raw = str(_cfg(self.cfg, "hotkey", "combo", "win+ctrl+alt"))
@@ -416,7 +395,9 @@ class Prompter:
             monitor = HotkeyMonitor("win+ctrl+alt", self._on_hotkey, window=win_s)
         _log(f"souffleur daemon starting (hotkey: {pretty_combo(combo_raw)})")
 
-        # 1) Clawpilot up + (optionally) foreground.
+        # 1) Clawpilot up + (optionally) foreground. This is a one-time prime;
+        #    Clawpilot is NOT monitored afterwards — each hotkey send re-checks
+        #    it (launch if gone, else just bring to front).
         try:
             self.writer.ensure_running()
             if self.foreground_on_start:
@@ -424,7 +405,7 @@ class Prompter:
             self.writer.prewarm()  # cache the composer subtree up front
             _log("[clawpilot ready]")
         except Exception as exc:
-            _err(f"could not start Clawpilot: {exc!r} (will retry via watchdog)")
+            _err(f"could not start Clawpilot: {exc!r} (will launch on hotkey)")
 
         # 2) transcript reader.
         self.reader.start()
@@ -434,45 +415,14 @@ class Prompter:
         monitor.start()
         _log("ready. Press the hotkey to send the transcript. Ctrl+C to quit.")
 
-        # 4) main loop: serve hotkey fires + run watchdog between them.
-        #    A press sets a pending request; if Clawpilot is mid-answer we hold
-        #    it and retry every retry_interval until it goes idle (or we give up
-        #    after idle_timeout), so a press is never silently dropped.
-        last_wd = 0.0
-        pending = False
-        pending_since = 0.0
-        last_attempt = 0.0
+        # 4) main loop: serve hotkey fires. Each press sends once, launching or
+        #    fronting Clawpilot as needed and pushing the transcript even if
+        #    Clawpilot is mid-answer. No background monitoring between presses.
         try:
             while not self._stop.is_set():
-                fired = self._fire.wait(timeout=0.2)
-                now = time.monotonic()
-                if fired:
+                if self._fire.wait(timeout=0.2):
                     self._fire.clear()
-                    pending = True
-                    pending_since = now
-                    last_attempt = 0.0  # attempt immediately
-
-                if pending and (now - last_attempt) >= self.retry_interval:
-                    last_attempt = now
-                    status = self._do_send()
-                    if status == "busy":
-                        if not self.wait_for_idle:
-                            _log("[skipped: Clawpilot is generating]")
-                            pending = False
-                        elif now - pending_since >= self.idle_timeout:
-                            _log(f"[gave up: Clawpilot still generating after "
-                                 f"{self.idle_timeout:.0f}s]")
-                            pending = False
-                        elif now - pending_since < self.retry_interval * 1.5:
-                            _log("[Clawpilot busy — will send when it's free]")
-                        # else: keep retrying quietly
-                    else:
-                        pending = False
-
-                now = time.monotonic()
-                if now - last_wd >= self.watchdog_interval:
-                    last_wd = now
-                    self._watchdog()
+                    self._do_send()
         except KeyboardInterrupt:
             _log("shutting down...")
         finally:

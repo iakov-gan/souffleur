@@ -30,7 +30,7 @@ _PALETTE = [
     49, 218, 159, 111, 205, 150, 186, 81,
 ]
 
-_CAPTION_RE = re.compile(r"<([^<>]*?):>")
+_CAPTION_RE = re.compile(r"<([^<>]*?)>:")
 _ANSI_RE = re.compile(r"\033\[[0-9;]*m")
 
 
@@ -97,7 +97,7 @@ def speaker_prefix(text: str, name: str, on: bool = True) -> str:
 
 
 def caption(text: str, on: bool = True) -> str:
-    """Color every ``<Name:>`` speaker tag found in ``text`` by speaker."""
+    """Color every ``<Name>:`` speaker tag found in ``text`` by speaker."""
     if not on:
         return text
     return _CAPTION_RE.sub(

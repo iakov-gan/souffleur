@@ -52,12 +52,21 @@ class ScoutWriter:
 
     # -- window discovery --------------------------------------------------- #
     def find_window(self) -> auto.Control | None:
+        """Return the Clawpilot top-level window, or None if not running.
+
+        Matches the window title case-insensitively as a substring so a
+        decorated title (e.g. "Clawpilot — Chat") still counts as running and
+        we bring it to the front instead of launching a duplicate.
+        """
+        want = (self.window_title or "").casefold()
         try:
             root = auto.GetRootControl()
             for w in root.GetChildren():
                 try:
-                    if (w.ControlTypeName == "WindowControl"
-                            and w.Name == self.window_title):
+                    if w.ControlTypeName != "WindowControl":
+                        continue
+                    name = w.Name or ""
+                    if want and want in name.casefold():
                         return w
                 except Exception:
                     continue
@@ -214,10 +223,12 @@ class ScoutWriter:
 
     # -- sending ------------------------------------------------------------ #
     def send(self, text: str) -> None:
-        """Paste ``text`` into the current chat and click Send.
+        """Paste ``text`` into the current chat and submit it.
 
-        Raises ScoutError on any structural failure (window/edit/button
-        missing). Skips silently only via the caller's is_generating() guard.
+        Launches/fronts Clawpilot as needed, pastes the payload, and submits
+        (clicking Send when idle, or pressing Enter while Clawpilot is
+        mid-answer). Raises ScoutError on a structural failure (window/edit
+        missing).
         """
         if not text or not text.strip():
             raise ScoutError("refusing to send empty text")
@@ -231,9 +242,11 @@ class ScoutWriter:
             raise ScoutError("Clawpilot 'Message' input not found")
         depth = 8 if scope is not win else self.search_depth
 
+        # The Send button is present only when Clawpilot is idle; mid-answer it
+        # is replaced by Stop. We still push the transcript in that case — by
+        # pressing Enter to submit — and never click Stop (which would cancel
+        # the in-flight answer).
         send_btn = self._bfs_find(scope, "ButtonControl", SEND_BUTTON_NAME, depth)
-        if send_btn is None:
-            raise ScoutError("Clawpilot 'Send' button not found")
 
         saved = None
         if self.restore_clipboard:
@@ -250,7 +263,11 @@ class ScoutWriter:
             auto.SendKeys("{Ctrl}a{Delete}", waitTime=0.03)
             auto.SendKeys("{Ctrl}v", waitTime=0.05)
             time.sleep(0.35)
-            self._click_send(win, send_btn)
+            if send_btn is not None:
+                self._click_send(win, send_btn)
+            else:
+                # Generating (no Send button): submit via Enter.
+                auto.SendKeys("{Enter}", waitTime=0.05)
         finally:
             if self.restore_clipboard and saved is not None:
                 # Restore after a short delay so the paste already consumed it.

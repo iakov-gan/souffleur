@@ -189,11 +189,10 @@ starts the transcript reader, and registers the hotkey. Then:
    into the current chat and sent; the answer streams in Clawpilot.
 
 Finalized transcript lines and status messages (`⌨ hotkey detected`,
-`[sent N lines / M chars]`, `[nothing new to send]`,
-`[skipped: Clawpilot is generating]`, `[clawpilot relaunched]`) print to the
+`[sent N lines / M chars]`, `[nothing new to send]`) print to the
 console in real time. The `⌨ hotkey detected` line confirms every press was
-seen — if a send doesn't follow, the status line says why (e.g. nothing new, or
-Clawpilot busy). Press **Ctrl+C** to quit.
+seen — if a send doesn't follow, the status line says why (e.g. nothing new).
+Press **Ctrl+C** to quit.
 
 ### Behaviour notes
 
@@ -210,8 +209,10 @@ Clawpilot busy). Press **Ctrl+C** to quit.
   (a `… <text>` line that updates in place) and is included in each send by
   default (`send.include_live = true`) — so pressing the hotkey mid-sentence
   still captures what's been said so far.
-- **Won't interrupt**: if Clawpilot is mid-generation (the action button shows
-  *Stop*), the press is skipped rather than cancelling the answer.
+- **Pushes even mid-answer**: if Clawpilot is already generating (the action
+  button shows *Stop*), the transcript is still submitted (via Enter) as a
+  follow-up rather than being dropped — Stop is never clicked, so the in-flight
+  answer isn't cancelled.
 - **Clipboard-safe**: text is sent via clipboard paste and your previous
   clipboard contents are restored.
 - **Reliable detection**: the hotkey is read by polling the physical keyboard
@@ -220,7 +221,10 @@ Clawpilot busy). Press **Ctrl+C** to quit.
   on the first try — no need to hit all keys in the same instant. This avoids
   the dropped-keystroke problem of low-level keyboard hooks. Tune
   `hotkey.window` if needed.
-- **Watchdog**: if Clawpilot is closed, it is relaunched automatically.
+- **No background monitoring**: Clawpilot is checked only when you press the
+  hotkey — if it isn't running it is launched, otherwise it is just brought to
+  the front (matched case-insensitively by window title, so it is never
+  relaunched as a duplicate). Souffleur does not poll or watch it between presses.
 - The Clawpilot window is brought to the foreground when sending (the app's
   Electron input can't be filled in the background). This is fine when you
   share a *window* rather than your full screen.
@@ -234,7 +238,7 @@ Auto-created with defaults on first run. Key settings:
 | `hotkey.combo` | `win+ctrl+alt` | Global trigger. Shorthand: `+`-separated modifiers/keys (`win+ctrl+alt`, `ctrl+f8`, `win+ctrl+alt+z`). `win` = Windows key. Avoid Ctrl+Shift (language switcher). A modifier-only chord fires once per hold (release one key to re-fire). |
 | `hotkey.window` | `0.25` | Seconds tolerance for a "rolling" press — how far apart the chord keys may land and still count as one press. Raise if presses get missed; lower to reduce accidental triggers. |
 | `clawpilot.exe` | `C:/Program Files (x86)/Clawpilot/Clawpilot.exe` | App to launch if not running. |
-| `clawpilot.window_title` | `Clawpilot` | Window name used to find the app. |
+| `clawpilot.window_title` | `Clawpilot` | Window title used to find the app (matched case-insensitively as a substring). |
 | `clawpilot.foreground_on_start` | `true` | Bring Clawpilot to front at startup. |
 | `send.mode` | `delta` | `delta` (new lines only) or `full`. |
 | `send.max_chars` | `12000` | Cap; oldest lines trimmed, newest kept. |
@@ -242,7 +246,6 @@ Auto-created with defaults on first run. Key settings:
 | `send.template` | `Here is a transcript of the meeting (or follow-up):\n'''\n{payload}\n'''\nFind the latest question(s) and answer as an expert.` | `{payload}` is the transcript. |
 | `send.restore_clipboard` | `true` | Restore prior clipboard after pasting. |
 | `capture.interval` | `0.5` | Transcript polling interval (s). |
-| `watchdog.interval` | `5.0` | Clawpilot alive-check interval (s). |
 
 
 ## Limitations

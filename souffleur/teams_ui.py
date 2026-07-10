@@ -267,12 +267,12 @@ def row_key(row: dict) -> str:
 def format_row(row: dict) -> str:
     """Render a caption row as a single line.
 
-    Speakers are wrapped in angle brackets ('<Speaker:> text') so a downstream
+    Speakers are wrapped in angle brackets ('<Speaker>: text') so a downstream
     LLM can unambiguously tell turns apart even when the text itself contains
     colons or newlines were stripped. Lines without a known speaker are emitted
     verbatim.
     """
-    return f"<{row['speaker']}:> {row['text']}" if row.get("speaker") else row["text"]
+    return f"<{row['speaker']}>: {row['text']}" if row.get("speaker") else row["text"]
 
 
 def describe(ctrl: auto.Control) -> str:
