@@ -25,6 +25,37 @@ CAPTION_HINTS = ("caption", "captions", "live caption", "transcript")
 # whose children are [author TextControl, caption-text TextControl].
 BODY_CLASS = "fui-ChatMessageCompact__body"
 
+# The round participant avatar (persona coin) carries an accessibility Name that
+# is the *badge* of the person, not their name — e.g. "External unfamiliar" for
+# a guest/unrecognized contact, plus a presence word like "Away" / "Offline".
+# That coin sits in the caption row's author area, so it shows up as an extra
+# leaf ahead of the real name; left in, it becomes a bogus speaker so every
+# external participant's line reads "<External unfamiliar>: <name> <text>".
+# We drop any leaf that is made up solely of these badge/presence words. A leaf
+# is only treated as badge noise when it also carries one of the "strong"
+# tokens below, so an ordinary name or caption word is never mistaken for one.
+_AVATAR_BADGE_WORDS = frozenset({
+    "external", "internal", "unfamiliar", "familiar", "guest",
+    "available", "busy", "away", "offline", "dnd",
+    "be", "right", "back", "do", "not", "disturb",
+    "out", "of", "office", "presence", "status", "unknown",
+})
+_AVATAR_BADGE_STRONG = frozenset({
+    "external", "internal", "unfamiliar", "familiar", "guest",
+    "offline", "busy", "away", "dnd", "presence", "disturb", "office",
+})
+
+
+def _is_avatar_label(text: str) -> bool:
+    """True if ``text`` is a Teams avatar/presence badge (the alt-text of the
+    round user icon), rather than a speaker name or caption text."""
+    words = text.strip().lower().split()
+    if not words:
+        return False
+    if not any(w in _AVATAR_BADGE_STRONG for w in words):
+        return False
+    return all(w in _AVATAR_BADGE_WORDS for w in words)
+
 
 # --------------------------------------------------------------------------- #
 # Window / container discovery
@@ -249,7 +280,9 @@ def read_rows(container: auto.Control) -> list[dict]:
     collect_bodies(container, bodies)
     rows = []
     for body in bodies:
-        leaves = [t for t in leaf_texts(body) if t]
+        # Drop avatar/presence badge leaves (e.g. "External unfamiliar", "Away")
+        # so the persona coin's alt-text isn't mistaken for the speaker.
+        leaves = [t for t in leaf_texts(body) if t and not _is_avatar_label(t)]
         if not leaves:
             continue
         if len(leaves) >= 2:
