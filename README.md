@@ -17,6 +17,7 @@ flowchart LR
 - ✅ 100% local — runs as a normal app on your PC
 - ✅ No bot, no meeting join, no Microsoft Graph, no recording uploaded anywhere
 - ✅ Invisible to the tenant - it only *reads text already rendered on your screen*
+- ✅ Continuously saves each meeting to `~/.souffleur/YYYY-MM-DD-HH-MM-MEETING.md`
 
 ## Requirements
 
@@ -78,6 +79,12 @@ souffleur
 This launches Clawpilot if it isn't open, brings it to the front, starts the
 transcript reader, registers the hotkey, and prints
 `ready. Press the hotkey to send the transcript.`
+
+The transcript is also saved continuously under `~/.souffleur`. The filename
+uses the meeting start time and the Teams window title; characters that Windows
+does not allow in filenames are replaced safely. Saving is enabled by default.
+When the active Teams meeting changes, Souffleur closes out the current
+snapshot and starts a separate file for the new meeting.
 
 ### 3. Press the hotkey
 

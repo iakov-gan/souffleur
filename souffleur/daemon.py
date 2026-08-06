@@ -34,6 +34,8 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import os
+import re
 import sys
 import threading
 import time
@@ -73,9 +75,16 @@ template = "Here is a transcript of the meeting (or follow-up):\\n'''\\n{payload
 
 [capture]
 interval = 0.5
+save = true
+directory = "~/.souffleur"
 """
 
 TRIM_MARKER = "...[earlier transcript trimmed]...\n"
+_WINDOWS_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -92,6 +101,97 @@ def load_config(path: Path) -> dict:
 
 def _cfg(cfg: dict, section: str, key: str, default):
     return cfg.get(section, {}).get(key, default)
+
+
+def safe_filename_component(value: str, fallback: str = "MEETING") -> str:
+    """Make user-controlled text safe as one Windows filename component."""
+    value = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "-", value)
+    value = re.sub(r"\s+", " ", value).strip(" .")
+    value = re.sub(r"-{2,}", "-", value)
+    if not value:
+        value = fallback
+    if value.upper() in _WINDOWS_RESERVED_NAMES:
+        value = f"_{value}"
+    return value[:120].rstrip(" .") or fallback
+
+
+class MeetingRecorder:
+    """Persist a live Markdown snapshot of the current meeting transcript."""
+
+    def __init__(self, directory: str | Path, started_at: datetime | None = None):
+        self.directory = Path(os.path.expandvars(str(directory))).expanduser()
+        self.started_at = started_at or datetime.now()
+        self.path: Path | None = None
+        self.meeting_name = ""
+        self.meeting_id: tuple | None = None
+        self.finalized: list[str] = []
+        self.live: str | None = None
+        self._lock = threading.Lock()
+
+    def start_meeting(
+        self,
+        name: str,
+        meeting_id: tuple | None = None,
+        started_at: datetime | None = None,
+    ) -> Path:
+        with self._lock:
+            identity = meeting_id or ("title", name)
+            if self.path is not None and identity == self.meeting_id:
+                return self.path
+
+            self.started_at = started_at or datetime.now()
+            self.meeting_name = name or "Microsoft Teams Meeting"
+            self.meeting_id = identity
+            self.finalized.clear()
+            self.live = None
+            self.directory.mkdir(parents=True, exist_ok=True)
+
+            safe_name = safe_filename_component(self.meeting_name)
+            stamp = self.started_at.strftime("%Y-%m-%d-%H-%M")
+            candidate = self.directory / f"{stamp}-{safe_name}.md"
+            suffix = 2
+            while candidate.exists():
+                candidate = self.directory / f"{stamp}-{safe_name}-{suffix}.md"
+                suffix += 1
+            self.path = candidate
+            self._write()
+            return candidate
+
+    def add_final(self, line: str) -> None:
+        with self._lock:
+            if self.path is None:
+                return
+            self.finalized.append(line)
+            if self.live == line:
+                self.live = None
+            self._write()
+
+    def set_live(self, line: str | None) -> None:
+        with self._lock:
+            if self.path is None:
+                return
+            self.live = line
+            self._write()
+
+    def _write(self) -> None:
+        if self.path is None:
+            return
+        path = self.path
+        lines = list(self.finalized)
+        if self.live and (not lines or lines[-1] != self.live):
+            lines.append(self.live)
+        body = "\n\n".join(lines)
+        content = (
+            f"# {self.meeting_name}\n\n"
+            f"- Started: {self.started_at.astimezone().isoformat(timespec='seconds')}\n"
+            f"- Source: Microsoft Teams live captions\n\n"
+            f"## Transcript\n\n{body}"
+        )
+        if body:
+            content += "\n"
+        temp_path = path.with_suffix(path.suffix + ".tmp")
+        temp_path.write_text(content, encoding="utf-8")
+        temp_path.replace(path)
 
 
 # --------------------------------------------------------------------------- #
@@ -290,11 +390,34 @@ class Prompter:
         self.reader = TranscriptReader(
             interval=float(_cfg(cfg, "capture", "interval", 0.5)),
         )
-        self.reader.on_final = lambda line: CONSOLE.line(
-            f"{colors.dim('[' + _ts() + ']', colors.COLOR_STDOUT)} "
-            f"{colors.caption(line, colors.COLOR_STDOUT)}"
+        self.recorder = (
+            MeetingRecorder(_cfg(cfg, "capture", "directory", "~/.souffleur"))
+            if bool(_cfg(cfg, "capture", "save", True))
+            else None
         )
-        self.reader.on_live = lambda text: CONSOLE.live(text)
+
+        def on_final(line: str) -> None:
+            CONSOLE.line(
+                f"{colors.dim('[' + _ts() + ']', colors.COLOR_STDOUT)} "
+                f"{colors.caption(line, colors.COLOR_STDOUT)}"
+            )
+            if self.recorder:
+                self.recorder.add_final(line)
+
+        def on_live(text: str | None) -> None:
+            CONSOLE.live(text)
+            if self.recorder:
+                self.recorder.set_live(text)
+
+        def on_meeting_change(name: str, meeting_id: tuple | None) -> None:
+            self.last_idx = 0
+            if self.recorder:
+                path = self.recorder.start_meeting(name, meeting_id)
+                _log(f"[meeting changed — saving transcript to {path}]")
+
+        self.reader.on_final = on_final
+        self.reader.on_live = on_live
+        self.reader.on_meeting_change = on_meeting_change
 
         self.writer = ScoutWriter(
             exe=str(_cfg(cfg, "clawpilot", "exe",
@@ -407,7 +530,8 @@ class Prompter:
         except Exception as exc:
             _err(f"could not start Clawpilot: {exc!r} (will launch on hotkey)")
 
-        # 2) transcript reader.
+        # 2) Transcript reader. Its meeting-change callback creates/rotates the
+        # output file before any rows from that meeting are emitted.
         self.reader.start()
         _log("[transcript reader started — waiting for Teams captions]")
 

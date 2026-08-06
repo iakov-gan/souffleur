@@ -34,6 +34,9 @@ template = "Here is a transcript of the meeting (or follow-up):\n'''\n{payload}\
 
 [capture]
 interval = 0.5            # transcript polling interval (seconds)
+# Continuously save the finalized transcript plus the current live caption.
+save = true
+directory = "~/.souffleur"
 
 [watchdog]
 interval = 5.0            # seconds between Clawpilot alive checks

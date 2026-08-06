@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import threading
 import time
+import re
 
 import uiautomation as auto
 
@@ -68,7 +69,7 @@ def is_teams_window(win: auto.Control) -> bool:
         return False
     if "teams" in name:
         return True
-    if cls in ("chrome_widgetwin_1", "chrome_widgetwin_0") and name:
+    if cls == "teamswebview" and name:
         return True
     return False
 
@@ -85,6 +86,52 @@ def iter_teams_windows():
             continue
     wins.sort(key=lambda w: 0 if "meeting" in (w.Name or "").lower() else 1)
     return wins
+
+
+def meeting_name_from_window_title(title: str) -> str:
+    """Extract the meeting name from a Teams window title."""
+    name = (title or "").split("|", 1)[0].strip()
+    # Channel meetings are displayed as "Meeting name (General)".
+    name = re.sub(r"\s+\(General\)$", "", name, flags=re.IGNORECASE)
+    return name or "Microsoft Teams Meeting"
+
+
+def active_meeting_name(max_depth: int = 40) -> str:
+    """Return the name of the meeting that owns the live-caption region."""
+    container = find_container(None, None, max_depth)
+    if container is not None:
+        name, _ = meeting_context_for_control(container)
+        if name:
+            return name
+
+    for win in iter_teams_windows():
+        try:
+            title = win.Name or ""
+        except Exception:
+            continue
+        if "microsoft teams" in title.lower():
+            return meeting_name_from_window_title(title)
+    return "Microsoft Teams Meeting"
+
+
+def meeting_context_for_control(
+    ctrl: auto.Control,
+) -> tuple[str | None, tuple | None]:
+    """Return the owning Teams meeting name and stable window runtime ID."""
+    current = ctrl
+    for _ in range(100):
+        try:
+            if current.ControlTypeName == "WindowControl":
+                title = current.Name or ""
+                if "microsoft teams" in title.lower():
+                    return meeting_name_from_window_title(title), _runtime_id(current)
+                return None, None
+            current = current.GetParentControl()
+        except Exception:
+            return None, None
+        if current is None:
+            return None, None
+    return None, None
 
 
 def _attrs(ctrl: auto.Control):
@@ -394,6 +441,10 @@ class TranscriptReader:
         # (live) caption line changes — for real-time display of a paragraph
         # that is still growing before it finalizes.
         self.on_live = None
+        # Optional callback(name: str, window_id: tuple | None) invoked whenever
+        # capture moves to a different Teams meeting window.
+        self.on_meeting_change = None
+        self._meeting_id: tuple | None = None
 
     # -- lifecycle ---------------------------------------------------------- #
     def start(self) -> "TranscriptReader":
@@ -451,6 +502,24 @@ class TranscriptReader:
                 except Exception:
                     pass
 
+    def _set_meeting(self, container: auto.Control) -> bool:
+        name, meeting_id = meeting_context_for_control(container)
+        if not name:
+            return False
+        identity = meeting_id or ("title", name)
+        if identity == self._meeting_id:
+            return False
+        self._meeting_id = identity
+        with self._lock:
+            self._finalized.clear()
+            self._live = None
+        if self.on_meeting_change:
+            try:
+                self.on_meeting_change(name, meeting_id)
+            except Exception:
+                pass
+        return True
+
     def _run(self) -> None:
         # Each UIA call should fail fast so the loop stays responsive.
         try:
@@ -476,6 +545,8 @@ class TranscriptReader:
                 backoff = self.SEARCH_MIN
                 empty_polls = 0
                 self._healthy = True
+                if self._set_meeting(container):
+                    tracker = CaptionTracker()
 
             # --- CAPTURING ------------------------------------------------- #
             try:
@@ -493,6 +564,8 @@ class TranscriptReader:
                         container = None
                         continue
                     container = fresh
+                    if self._set_meeting(container):
+                        tracker = CaptionTracker()
                     try:
                         rows = read_rows(container)
                     except Exception:
