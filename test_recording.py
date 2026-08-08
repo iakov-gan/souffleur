@@ -2,12 +2,26 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 from souffleur.daemon import MeetingRecorder, safe_filename_component
-from souffleur.teams_ui import meeting_name_from_window_title
+from souffleur.teams_ui import TranscriptReader, meeting_name_from_window_title
 
 
 class MeetingRecordingTests(unittest.TestCase):
+    def test_initializes_ui_automation_in_reader_thread(self):
+        reader = TranscriptReader()
+        with patch(
+            "souffleur.teams_ui.auto.UIAutomationInitializerInThread"
+        ) as initializer, patch.object(
+            reader, "_run_initialized"
+        ) as run_initialized:
+            reader._run()
+
+        initializer.assert_called_once_with()
+        initializer.return_value.__enter__.assert_called_once_with()
+        run_initialized.assert_called_once_with()
+
     def test_extracts_channel_meeting_name(self):
         title = "test (General) | Microsoft | user@example.com | Microsoft Teams"
         self.assertEqual(meeting_name_from_window_title(title), "test")

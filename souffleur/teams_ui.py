@@ -521,6 +521,12 @@ class TranscriptReader:
         return True
 
     def _run(self) -> None:
+        # COM is initialized per thread. The main thread is initialized by
+        # uiautomation on import, but worker threads must opt in explicitly.
+        with auto.UIAutomationInitializerInThread():
+            self._run_initialized()
+
+    def _run_initialized(self) -> None:
         # Each UIA call should fail fast so the loop stays responsive.
         try:
             auto.SetGlobalSearchTimeout(1)
