@@ -257,7 +257,7 @@ Auto-created with defaults on first run. Key settings:
 | `send.template` | `Here is a transcript of the meeting (or follow-up):\n'''\n{payload}\n'''\nFind the latest question(s) and answer as an expert.` | `{payload}` is the transcript. |
 | `send.restore_clipboard` | `true` | Restore prior clipboard after pasting. |
 | `capture.interval` | `0.5` | Transcript polling interval (s). |
-| `capture.auto_enable` | `true` | When captions are missing, try to enable them through the Teams meeting controls. Supports English and French Teams UI labels. |
+| `capture.auto_enable` | `true` | When captions are missing, focus the active call and press `Alt+Shift+C`. Falls back to English/French Teams menu automation if needed. |
 
 
 ## Limitations

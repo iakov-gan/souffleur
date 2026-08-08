@@ -28,6 +28,7 @@ class FakeControl:
         self.children = children or []
         self.on_invoke = None
         self.invoked = False
+        self.activated = False
 
     def GetChildren(self):
         return self.children
@@ -39,6 +40,9 @@ class FakeControl:
         self.invoked = True
         if self.on_invoke:
             self.on_invoke()
+
+    def SetActive(self):
+        self.activated = True
 
 
 class MeetingRecordingTests(unittest.TestCase):
@@ -63,7 +67,27 @@ class MeetingRecordingTests(unittest.TestCase):
         ):
             self.assertEqual(iter_meeting_windows(), [meeting])
 
-    def test_enables_french_live_captions_from_teams_menu(self):
+    def test_enables_live_captions_with_teams_shortcut(self):
+        window = FakeControl(
+            children=[FakeControl("Quitter", "ButtonControl")]
+        )
+        with patch(
+            "souffleur.teams_ui.iter_meeting_windows", return_value=[window]
+        ), patch(
+            "souffleur.teams_ui.auto.GetRootControl"
+        ), patch(
+            "souffleur.teams_ui.auto.SendKeys"
+        ) as send_keys, patch(
+            "souffleur.teams_ui.time.sleep"
+        ):
+            enabled, message = enable_live_captions()
+
+        self.assertTrue(enabled)
+        self.assertTrue(window.activated)
+        send_keys.assert_called_once_with("{Alt}{Shift}c", waitTime=0.2)
+        self.assertIn("Alt+Shift+C", message)
+
+    def test_falls_back_to_french_live_captions_menu(self):
         root = FakeControl()
         caption = FakeControl(
             "Activer les sous-titres en direct", "MenuItemControl"
@@ -78,6 +102,8 @@ class MeetingRecordingTests(unittest.TestCase):
             "souffleur.teams_ui.iter_meeting_windows", return_value=[window]
         ), patch(
             "souffleur.teams_ui.auto.GetRootControl", return_value=root
+        ), patch(
+            "souffleur.teams_ui.auto.SendKeys", side_effect=RuntimeError
         ), patch(
             "souffleur.teams_ui.time.sleep"
         ):

@@ -248,7 +248,7 @@ def _invoke(ctrl: auto.Control) -> bool:
 
 
 def enable_live_captions(max_depth: int = 40) -> tuple[bool, str]:
-    """Best-effort activation of Teams live captions in English or French."""
+    """Activate Teams live captions by shortcut, with menu fallback."""
     windows = iter_meeting_windows(max_depth)
     if not windows:
         return False, "no active Microsoft Teams call found"
@@ -256,6 +256,14 @@ def enable_live_captions(max_depth: int = 40) -> tuple[bool, str]:
     root = auto.GetRootControl()
     menu_types = ("ButtonControl", "MenuItemControl")
     for window in windows:
+        try:
+            window.SetActive()
+            time.sleep(0.2)
+            auto.SendKeys("{Alt}{Shift}c", waitTime=0.2)
+            return True, "pressed Alt+Shift+C to enable live captions"
+        except Exception:
+            pass
+
         direct = _find_named_control(
             [window], ENABLE_CAPTION_NAMES, menu_types, max_depth
         )
