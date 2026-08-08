@@ -36,6 +36,11 @@ ENABLE_CAPTION_NAMES = (
     "turn on live captions",
     "activer les sous-titres en direct",
 )
+LEAVE_CALL_PREFIXES = (
+    "leave",
+    "hang up",
+    "quitter",
+)
 # Each caption entry in new Teams is rendered as this Fluent UI element,
 # whose children are [author TextControl, caption-text TextControl].
 BODY_CLASS = "fui-ChatMessageCompact__body"
@@ -102,6 +107,28 @@ def iter_teams_windows():
     return wins
 
 
+def has_active_call_controls(win: auto.Control, max_depth: int = 30) -> bool:
+    """True when a Teams window exposes the active-call leave button."""
+    for _, ctrl in walk(win, 0, max_depth):
+        try:
+            if ctrl.ControlTypeName != "ButtonControl":
+                continue
+        except Exception:
+            continue
+        name = _normalized_name(ctrl)
+        if any(name.startswith(prefix) for prefix in LEAVE_CALL_PREFIXES):
+            return True
+    return False
+
+
+def iter_meeting_windows(max_depth: int = 30):
+    """Return Teams windows that are active calls, excluding ordinary chats."""
+    return [
+        win for win in iter_teams_windows()
+        if has_active_call_controls(win, max_depth)
+    ]
+
+
 def meeting_name_from_window_title(title: str) -> str:
     """Extract the meeting name from a Teams window title."""
     name = (title or "").split("|", 1)[0].strip()
@@ -118,7 +145,7 @@ def active_meeting_name(max_depth: int = 40) -> str:
         if name:
             return name
 
-    for win in iter_teams_windows():
+    for win in iter_meeting_windows(max_depth):
         try:
             title = win.Name or ""
         except Exception:
@@ -222,9 +249,9 @@ def _invoke(ctrl: auto.Control) -> bool:
 
 def enable_live_captions(max_depth: int = 40) -> tuple[bool, str]:
     """Best-effort activation of Teams live captions in English or French."""
-    windows = iter_teams_windows()
+    windows = iter_meeting_windows(max_depth)
     if not windows:
-        return False, "no Microsoft Teams window found"
+        return False, "no active Microsoft Teams call found"
 
     root = auto.GetRootControl()
     menu_types = ("ButtonControl", "MenuItemControl")
@@ -353,8 +380,9 @@ def find_container(
                     return ctrl
         return None
 
-    # 2) auto-detect via a caption-named region (only works when the Teams UI
-    #    language is one whose region label contains a known hint word).
+    # 2) auto-detect via a caption-named region. A candidate must actually
+    #    contain caption bodies so ordinary chat text mentioning "captions"
+    #    cannot be mistaken for the caption panel.
     best = None
     best_score = -1
     for win in iter_teams_windows():
@@ -362,8 +390,9 @@ def find_container(
             name, _, _ = _attrs(ctrl)
             blob = name.lower()
             if name and any(h in blob for h in CAPTION_HINTS):
-                score = 1000 + count_bodies(ctrl)
-                if score > best_score:
+                body_count = count_bodies(ctrl)
+                score = 1000 + body_count
+                if body_count and score > best_score:
                     best_score, best = score, ctrl
     if best is not None:
         return best
@@ -371,7 +400,7 @@ def find_container(
     # 3) language-independent fallback: the lowest common ancestor of the
     #    caption-message bodies. Robust when the region Name is localized.
     best, best_n = None, 0
-    for win in iter_teams_windows():
+    for win in iter_meeting_windows(max_depth):
         cand, n = _lca_container(win, max_depth)
         if cand is not None and n > best_n:
             best, best_n = cand, n

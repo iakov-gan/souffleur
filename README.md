@@ -17,6 +17,7 @@ flowchart LR
 - ✅ 100% local — runs as a normal app on your PC
 - ✅ No bot, no meeting join, no Microsoft Graph, no recording uploaded anywhere
 - ✅ Invisible to the tenant - it only *reads text already rendered on your screen*
+- ✅ Ignores ordinary Teams chats and captures only an active call window
 - ✅ Continuously saves each meeting to `~/.souffleur/YYYY-MM-DD-HH-MM-MEETING.md`
 
 ## Requirements

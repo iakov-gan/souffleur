@@ -5,7 +5,7 @@ Run it with ``python -m souffleur`` or, once installed, the ``souffleur`` comman
 """
 from __future__ import annotations
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 
 from .cli import main
 

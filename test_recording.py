@@ -8,14 +8,23 @@ from souffleur.daemon import MeetingRecorder, safe_filename_component
 from souffleur.teams_ui import (
     TranscriptReader,
     enable_live_captions,
+    has_active_call_controls,
+    iter_meeting_windows,
     meeting_name_from_window_title,
 )
 
 
 class FakeControl:
-    def __init__(self, name="", control_type="GroupControl", children=None):
+    def __init__(
+        self,
+        name="",
+        control_type="GroupControl",
+        children=None,
+        class_name="",
+    ):
         self.Name = name
         self.ControlTypeName = control_type
+        self.ClassName = class_name
         self.children = children or []
         self.on_invoke = None
         self.invoked = False
@@ -33,6 +42,27 @@ class FakeControl:
 
 
 class MeetingRecordingTests(unittest.TestCase):
+    def test_excludes_normal_chat_windows_from_meeting_discovery(self):
+        normal_chat = FakeControl(
+            children=[
+                FakeControl(
+                    "Latest normal chat message",
+                    class_name="fui-ChatMessageCompact__body",
+                )
+            ]
+        )
+        meeting = FakeControl(
+            children=[FakeControl("Quitter", "ButtonControl")]
+        )
+
+        self.assertFalse(has_active_call_controls(normal_chat))
+        self.assertTrue(has_active_call_controls(meeting))
+        with patch(
+            "souffleur.teams_ui.iter_teams_windows",
+            return_value=[normal_chat, meeting],
+        ):
+            self.assertEqual(iter_meeting_windows(), [meeting])
+
     def test_enables_french_live_captions_from_teams_menu(self):
         root = FakeControl()
         caption = FakeControl(
@@ -45,7 +75,7 @@ class MeetingRecordingTests(unittest.TestCase):
         window = FakeControl(children=[more])
 
         with patch(
-            "souffleur.teams_ui.iter_teams_windows", return_value=[window]
+            "souffleur.teams_ui.iter_meeting_windows", return_value=[window]
         ), patch(
             "souffleur.teams_ui.auto.GetRootControl", return_value=root
         ), patch(
