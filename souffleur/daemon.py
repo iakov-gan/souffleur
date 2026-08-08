@@ -44,7 +44,12 @@ from datetime import datetime
 from pathlib import Path
 
 from .teams_ui import TranscriptReader
-from .scout import ScoutError, ScoutWriter
+from .scout import (
+    DEFAULT_EXE,
+    ScoutError,
+    ScoutWriter,
+    resolve_clawpilot_exe,
+)
 from . import colors
 
 # config.toml in the current working directory (auto-created on first run).
@@ -62,7 +67,8 @@ combo = "win+ctrl+alt"
 window = 0.25
 
 [clawpilot]
-exe = "C:/Program Files (x86)/Clawpilot/Clawpilot.exe"
+enabled = true
+exe = "auto"
 window_title = "Clawpilot"
 foreground_on_start = true
 
@@ -420,10 +426,12 @@ class Prompter:
         self.reader.on_meeting_change = on_meeting_change
 
         self.writer = ScoutWriter(
-            exe=str(_cfg(cfg, "clawpilot", "exe",
-                         r"C:\Program Files (x86)\Clawpilot\Clawpilot.exe")),
+            exe=str(_cfg(cfg, "clawpilot", "exe", DEFAULT_EXE)),
             window_title=str(_cfg(cfg, "clawpilot", "window_title", "Clawpilot")),
             restore_clipboard=bool(_cfg(cfg, "send", "restore_clipboard", True)),
+        )
+        self.clawpilot_enabled = bool(
+            _cfg(cfg, "clawpilot", "enabled", True)
         )
         self.foreground_on_start = bool(
             _cfg(cfg, "clawpilot", "foreground_on_start", True)
@@ -521,14 +529,22 @@ class Prompter:
         # 1) Clawpilot up + (optionally) foreground. This is a one-time prime;
         #    Clawpilot is NOT monitored afterwards — each hotkey send re-checks
         #    it (launch if gone, else just bring to front).
-        try:
-            self.writer.ensure_running()
-            if self.foreground_on_start:
-                self.writer.bring_to_front()
-            self.writer.prewarm()  # cache the composer subtree up front
-            _log("[clawpilot ready]")
-        except Exception as exc:
-            _err(f"could not start Clawpilot: {exc!r} (will launch on hotkey)")
+        if self.clawpilot_enabled:
+            try:
+                self.writer.exe = resolve_clawpilot_exe(self.writer.exe)
+            except ScoutError:
+                self.clawpilot_enabled = False
+                _log("[Clawpilot not installed — continuing in capture-only mode]")
+
+        if self.clawpilot_enabled:
+            try:
+                self.writer.ensure_running()
+                if self.foreground_on_start:
+                    self.writer.bring_to_front()
+                self.writer.prewarm()  # cache the composer subtree up front
+                _log("[clawpilot ready]")
+            except Exception as exc:
+                _err(f"could not start Clawpilot: {exc!r} (will launch on hotkey)")
 
         # 2) Transcript reader. Its meeting-change callback creates/rotates the
         # output file before any rows from that meeting are emitted.
@@ -536,8 +552,11 @@ class Prompter:
         _log("[transcript reader started — waiting for Teams captions]")
 
         # 3) global hotkey monitor (GetAsyncKeyState polling).
-        monitor.start()
-        _log("ready. Press the hotkey to send the transcript. Ctrl+C to quit.")
+        if self.clawpilot_enabled:
+            monitor.start()
+            _log("ready. Press the hotkey to send the transcript. Ctrl+C to quit.")
+        else:
+            _log("ready. Capturing and saving Teams captions. Ctrl+C to quit.")
 
         # 4) main loop: serve hotkey fires. Each press sends once, launching or
         #    fronting Clawpilot as needed and pushing the transcript even if
@@ -550,10 +569,11 @@ class Prompter:
         except KeyboardInterrupt:
             _log("shutting down...")
         finally:
-            try:
-                monitor.stop()
-            except Exception:
-                pass
+            if self.clawpilot_enabled:
+                try:
+                    monitor.stop()
+                except Exception:
+                    pass
             self.reader.stop()
         return 0
 

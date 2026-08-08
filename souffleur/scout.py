@@ -14,13 +14,16 @@ handles large, multiline text reliably.
 """
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import uiautomation as auto
 
-DEFAULT_EXE = r"C:\Program Files (x86)\Clawpilot\Clawpilot.exe"
+DEFAULT_EXE = "auto"
 DEFAULT_TITLE = "Clawpilot"
 SEND_BUTTON_NAME = "Send"
 STOP_BUTTON_NAME = "Stop"
@@ -29,6 +32,83 @@ MESSAGE_EDIT_NAME = "Message"
 
 class ScoutError(RuntimeError):
     pass
+
+
+def _registry_clawpilot_paths() -> list[str]:
+    if sys.platform != "win32":
+        return []
+    try:
+        import winreg
+    except ImportError:
+        return []
+
+    paths = []
+    key_path = r"Software\Microsoft\Windows\CurrentVersion\App Paths\Clawpilot.exe"
+    for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+        for access in (
+            winreg.KEY_READ,
+            winreg.KEY_READ | getattr(winreg, "KEY_WOW64_64KEY", 0),
+            winreg.KEY_READ | getattr(winreg, "KEY_WOW64_32KEY", 0),
+        ):
+            try:
+                with winreg.OpenKey(hive, key_path, 0, access) as key:
+                    value, _ = winreg.QueryValueEx(key, None)
+                    if value:
+                        paths.append(str(value))
+            except OSError:
+                continue
+    return paths
+
+
+def resolve_clawpilot_exe(configured: str = DEFAULT_EXE) -> str:
+    """Find Clawpilot across common per-machine and per-user installs."""
+    candidates = []
+    configured = os.path.expandvars(os.path.expanduser(configured or ""))
+    if configured.casefold() != "auto":
+        candidates.append(configured)
+
+    env_override = os.environ.get("CLAWPILOT_EXE")
+    if env_override:
+        candidates.append(os.path.expandvars(os.path.expanduser(env_override)))
+
+    for command in ("Clawpilot.exe", "clawpilot"):
+        found = shutil.which(command)
+        if found:
+            candidates.append(found)
+
+    install_roots = (
+        os.environ.get("ProgramFiles"),
+        os.environ.get("ProgramFiles(x86)"),
+        os.environ.get("LOCALAPPDATA"),
+    )
+    relative_paths = (
+        Path("Clawpilot") / "Clawpilot.exe",
+        Path("Programs") / "Clawpilot" / "Clawpilot.exe",
+        Path("Microsoft") / "Clawpilot" / "Clawpilot.exe",
+    )
+    for root in install_roots:
+        if root:
+            candidates.extend(str(Path(root) / relative) for relative in relative_paths)
+    candidates.extend(_registry_clawpilot_paths())
+
+    seen = set()
+    for candidate in candidates:
+        normalized = os.path.normcase(os.path.abspath(candidate))
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        if Path(candidate).is_file():
+            return str(Path(candidate))
+
+    detail = (
+        f"configured path {configured!r}; " if configured.casefold() != "auto"
+        else ""
+    )
+    raise ScoutError(
+        "could not find Clawpilot.exe "
+        f"({detail}checked PATH, Program Files, LocalAppData, and App Paths). "
+        "Set clawpilot.exe in config.toml or the CLAWPILOT_EXE environment variable."
+    )
 
 
 class ScoutWriter:
@@ -157,11 +237,13 @@ class ScoutWriter:
 
     def launch(self) -> bool:
         """Start Clawpilot if its executable exists. Returns True if spawned."""
+        executable = resolve_clawpilot_exe(self.exe)
         try:
-            subprocess.Popen([self.exe], close_fds=True)
+            subprocess.Popen([executable], close_fds=True)
+            self.exe = executable
             return True
         except Exception as exc:
-            raise ScoutError(f"could not launch Clawpilot ({self.exe!r}): {exc}")
+            raise ScoutError(f"could not launch Clawpilot ({executable!r}): {exc}")
 
     def ensure_running(self, wait: float = 25.0) -> auto.Control:
         """Return the window, launching Clawpilot and waiting if necessary."""

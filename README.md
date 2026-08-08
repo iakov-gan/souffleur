@@ -76,9 +76,9 @@ you get a live, in-context answer while you talk.
 souffleur
 ```
 
-This launches Clawpilot if it isn't open, brings it to the front, starts the
-transcript reader, registers the hotkey, and prints
-`ready. Press the hotkey to send the transcript.`
+If Clawpilot is installed, this launches it, brings it to the front, starts the
+transcript reader, and registers the hotkey. Without Clawpilot, Souffleur
+automatically runs in capture-only mode and continues saving the transcript.
 
 The transcript is also saved continuously under `~/.souffleur`. The filename
 uses the meeting start time and the Teams window title; characters that Windows
@@ -244,7 +244,8 @@ Auto-created with defaults on first run. Key settings:
 |---|---|---|
 | `hotkey.combo` | `win+ctrl+alt` | Global trigger. Shorthand: `+`-separated modifiers/keys (`win+ctrl+alt`, `ctrl+f8`, `win+ctrl+alt+z`). `win` = Windows key. Avoid Ctrl+Shift (language switcher). A modifier-only chord fires once per hold (release one key to re-fire). |
 | `hotkey.window` | `0.25` | Seconds tolerance for a "rolling" press — how far apart the chord keys may land and still count as one press. Raise if presses get missed; lower to reduce accidental triggers. |
-| `clawpilot.exe` | `C:/Program Files (x86)/Clawpilot/Clawpilot.exe` | App to launch if not running. |
+| `clawpilot.enabled` | `true` | Enable hotkey sending. If Clawpilot is not installed, Souffleur automatically continues in capture-only mode. Set to `false` to always capture without Clawpilot. |
+| `clawpilot.exe` | `auto` | App to launch if not running. Auto-detects PATH, Program Files, per-user installs, and Windows App Paths. Set an explicit path if needed. |
 | `clawpilot.window_title` | `Clawpilot` | Window title used to find the app (matched case-insensitively as a substring). |
 | `clawpilot.foreground_on_start` | `true` | Bring Clawpilot to front at startup. |
 | `send.mode` | `delta` | `delta` (new lines only) or `full`. |
