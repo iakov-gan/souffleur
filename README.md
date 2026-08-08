@@ -256,12 +256,14 @@ Auto-created with defaults on first run. Key settings:
 | `send.template` | `Here is a transcript of the meeting (or follow-up):\n'''\n{payload}\n'''\nFind the latest question(s) and answer as an expert.` | `{payload}` is the transcript. |
 | `send.restore_clipboard` | `true` | Restore prior clipboard after pasting. |
 | `capture.interval` | `0.5` | Transcript polling interval (s). |
+| `capture.auto_enable` | `true` | When captions are missing, try to enable them through the Teams meeting controls. Supports English and French Teams UI labels. |
 
 
 ## Limitations
 
-- Requires Live Captions to be turned on (Souffleur reads Teams' captions; it does
-  not transcribe audio itself). For a Teams-independent alternative, capture
+- Souffleur attempts to enable Live Captions automatically. If Teams changes or
+  localizes its controls differently, turn captions on manually. Souffleur reads
+  Teams' captions; it does not transcribe audio itself. For a Teams-independent alternative, capture
   loopback audio (WASAPI) and run a local STT model such as whisper.cpp.
 - Caption accuracy is whatever Teams produces.
 - Element names are Teams-version dependent (see "How it works").

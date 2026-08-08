@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "souffleur"
-version = "0.1.3"
+version = "0.1.4"
 description = "Local, real-time Microsoft Teams live-caption capture for Windows that pushes the live transcript to Microsoft Scout (Clawpilot) on a hotkey for fast, in-context answers."
 readme = "README.md"
 requires-python = ">=3.10"

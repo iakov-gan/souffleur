@@ -82,6 +82,7 @@ template = "Here is a transcript of the meeting (or follow-up):\\n'''\\n{payload
 
 [capture]
 interval = 0.5
+auto_enable = true
 save = true
 directory = "~/.souffleur"
 """
@@ -487,6 +488,7 @@ class Prompter:
 
         self.reader = TranscriptReader(
             interval=float(_cfg(cfg, "capture", "interval", 0.5)),
+            auto_enable=bool(_cfg(cfg, "capture", "auto_enable", True)),
         )
         self.recorder = (
             MeetingRecorder(_cfg(cfg, "capture", "directory", "~/.souffleur"))
@@ -516,6 +518,7 @@ class Prompter:
         self.reader.on_final = on_final
         self.reader.on_live = on_live
         self.reader.on_meeting_change = on_meeting_change
+        self.reader.on_status = lambda message: _log(f"[captions: {message}]")
 
         self.writer = ScoutWriter(
             exe=str(_cfg(cfg, "clawpilot", "exe", DEFAULT_EXE)),

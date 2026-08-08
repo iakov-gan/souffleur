@@ -56,6 +56,7 @@ from .teams_ui import (
     find_container,
     iter_teams_windows,
     read_rows,
+    enable_live_captions,
     walk,
 )
 
@@ -92,6 +93,7 @@ def run_capture(args) -> int:
     reacquire_after = max(1, int(2.0 / max(args.interval, 0.01)))
     backoff = SEARCH_MIN
     searching_announced = False
+    next_enable_attempt = 0.0
     timeout = args.timeout if args.timeout and args.timeout > 0 else 0.0
     search_deadline = (time.monotonic() + timeout) if timeout else None
 
@@ -102,6 +104,14 @@ def run_capture(args) -> int:
             if container is None:
                 container = acquire(args)
                 if container is None:
+                    now = time.monotonic()
+                    if args.auto_enable and now >= next_enable_attempt:
+                        enabled, message = enable_live_captions(args.depth)
+                        next_enable_attempt = now + 30.0
+                        _eprint(f"souffleur: {message}.")
+                        if enabled:
+                            time.sleep(1.5)
+                            continue
                     if search_deadline and time.monotonic() > search_deadline:
                         _eprint("souffleur: timed out waiting for live captions.")
                         return 1
@@ -308,6 +318,12 @@ def build_parser() -> argparse.ArgumentParser:
     cap.add_argument("--timeout", type=float, default=0.0,
                      help="Seconds to wait for captions before giving up "
                           "(0 = wait forever, the default).")
+    cap.add_argument(
+        "--auto-enable",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Try to turn Teams live captions on automatically (default: on).",
+    )
     cap.set_defaults(func=run_capture)
 
     dis = sub.add_parser("discover", help="Diagnose windows + caption region.")

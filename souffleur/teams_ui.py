@@ -22,6 +22,20 @@ import re
 import uiautomation as auto
 
 CAPTION_HINTS = ("caption", "captions", "live caption", "transcript")
+MORE_ACTION_NAMES = (
+    "more",
+    "more actions",
+    "autres",
+    "autres actions",
+)
+LANGUAGE_SPEECH_NAMES = (
+    "language and speech",
+    "langue et voix",
+)
+ENABLE_CAPTION_NAMES = (
+    "turn on live captions",
+    "activer les sous-titres en direct",
+)
 # Each caption entry in new Teams is rendered as this Fluent UI element,
 # whose children are [author TextControl, caption-text TextControl].
 BODY_CLASS = "fui-ChatMessageCompact__body"
@@ -165,6 +179,89 @@ def walk(ctrl: auto.Control, depth: int, max_depth: int):
         children = []
     for child in children:
         yield from walk(child, depth + 1, max_depth)
+
+
+def _normalized_name(ctrl: auto.Control) -> str:
+    try:
+        return re.sub(r"\s+", " ", (ctrl.Name or "")).strip().casefold()
+    except Exception:
+        return ""
+
+
+def _find_named_control(
+    roots: list[auto.Control],
+    names: tuple[str, ...],
+    control_types: tuple[str, ...],
+    max_depth: int,
+) -> auto.Control | None:
+    wanted = {name.casefold() for name in names}
+    for root in roots:
+        for _, ctrl in walk(root, 0, max_depth):
+            try:
+                if (
+                    ctrl.ControlTypeName in control_types
+                    and _normalized_name(ctrl) in wanted
+                ):
+                    return ctrl
+            except Exception:
+                continue
+    return None
+
+
+def _invoke(ctrl: auto.Control) -> bool:
+    try:
+        ctrl.GetInvokePattern().Invoke()
+        return True
+    except Exception:
+        try:
+            ctrl.Click(simulateMove=False)
+            return True
+        except Exception:
+            return False
+
+
+def enable_live_captions(max_depth: int = 40) -> tuple[bool, str]:
+    """Best-effort activation of Teams live captions in English or French."""
+    windows = iter_teams_windows()
+    if not windows:
+        return False, "no Microsoft Teams window found"
+
+    root = auto.GetRootControl()
+    menu_types = ("ButtonControl", "MenuItemControl")
+    for window in windows:
+        direct = _find_named_control(
+            [window], ENABLE_CAPTION_NAMES, menu_types, max_depth
+        )
+        if direct is not None and _invoke(direct):
+            return True, "selected Turn on live captions"
+
+        more = _find_named_control(
+            [window], MORE_ACTION_NAMES, ("ButtonControl",), max_depth
+        )
+        if more is None or not _invoke(more):
+            continue
+        time.sleep(0.4)
+
+        caption = _find_named_control(
+            [root, window], ENABLE_CAPTION_NAMES, menu_types, max_depth
+        )
+        if caption is not None and _invoke(caption):
+            return True, "selected Turn on live captions"
+
+        language = _find_named_control(
+            [root, window], LANGUAGE_SPEECH_NAMES, menu_types, max_depth
+        )
+        if language is None or not _invoke(language):
+            continue
+        time.sleep(0.4)
+
+        caption = _find_named_control(
+            [root, window], ENABLE_CAPTION_NAMES, menu_types, max_depth
+        )
+        if caption is not None and _invoke(caption):
+            return True, "selected Turn on live captions"
+
+    return False, "Teams caption command was not found"
 
 
 def count_bodies(ctrl: auto.Control, max_depth: int = 30) -> int:
@@ -423,11 +520,13 @@ class TranscriptReader:
         interval: float = 0.25,
         container_aid: str | None = None,
         container_name: str | None = None,
+        auto_enable: bool = True,
     ):
         self.depth = depth
         self.interval = max(0.05, interval)
         self.container_aid = container_aid
         self.container_name = container_name
+        self.auto_enable = auto_enable
 
         self._finalized: list[str] = []
         self._live: str | None = None
@@ -444,6 +543,8 @@ class TranscriptReader:
         # Optional callback(name: str, window_id: tuple | None) invoked whenever
         # capture moves to a different Teams meeting window.
         self.on_meeting_change = None
+        # Optional callback(message: str) for auto-enable status.
+        self.on_status = None
         self._meeting_id: tuple | None = None
 
     # -- lifecycle ---------------------------------------------------------- #
@@ -538,6 +639,7 @@ class TranscriptReader:
         empty_polls = 0
         reacquire_after = max(1, int(2.0 / self.interval))
         backoff = self.SEARCH_MIN
+        next_enable_attempt = 0.0
 
         while not self._stop.is_set():
             # --- SEARCHING: no usable container yet ------------------------ #
@@ -545,6 +647,17 @@ class TranscriptReader:
                 container = self._acquire()
                 if container is None:
                     self._healthy = False
+                    now = time.monotonic()
+                    if self.auto_enable and now >= next_enable_attempt:
+                        enabled, message = enable_live_captions(self.depth)
+                        next_enable_attempt = now + 30.0
+                        if self.on_status:
+                            self.on_status(message)
+                        if enabled:
+                            self._stop.wait(1.5)
+                            container = self._acquire()
+                            if container is not None:
+                                continue
                     self._stop.wait(backoff)
                     backoff = min(backoff * 1.6, self.SEARCH_MAX)
                     continue

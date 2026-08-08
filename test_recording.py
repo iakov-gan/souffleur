@@ -5,10 +5,59 @@ from pathlib import Path
 from unittest.mock import patch
 
 from souffleur.daemon import MeetingRecorder, safe_filename_component
-from souffleur.teams_ui import TranscriptReader, meeting_name_from_window_title
+from souffleur.teams_ui import (
+    TranscriptReader,
+    enable_live_captions,
+    meeting_name_from_window_title,
+)
+
+
+class FakeControl:
+    def __init__(self, name="", control_type="GroupControl", children=None):
+        self.Name = name
+        self.ControlTypeName = control_type
+        self.children = children or []
+        self.on_invoke = None
+        self.invoked = False
+
+    def GetChildren(self):
+        return self.children
+
+    def GetInvokePattern(self):
+        return self
+
+    def Invoke(self):
+        self.invoked = True
+        if self.on_invoke:
+            self.on_invoke()
 
 
 class MeetingRecordingTests(unittest.TestCase):
+    def test_enables_french_live_captions_from_teams_menu(self):
+        root = FakeControl()
+        caption = FakeControl(
+            "Activer les sous-titres en direct", "MenuItemControl"
+        )
+        language = FakeControl("Langue et voix", "MenuItemControl")
+        language.on_invoke = lambda: root.children.append(caption)
+        more = FakeControl("Autres actions", "ButtonControl")
+        more.on_invoke = lambda: root.children.append(language)
+        window = FakeControl(children=[more])
+
+        with patch(
+            "souffleur.teams_ui.iter_teams_windows", return_value=[window]
+        ), patch(
+            "souffleur.teams_ui.auto.GetRootControl", return_value=root
+        ), patch(
+            "souffleur.teams_ui.time.sleep"
+        ):
+            enabled, _ = enable_live_captions()
+
+        self.assertTrue(enabled)
+        self.assertTrue(more.invoked)
+        self.assertTrue(language.invoked)
+        self.assertTrue(caption.invoked)
+
     def test_initializes_ui_automation_in_reader_thread(self):
         reader = TranscriptReader()
         with patch(

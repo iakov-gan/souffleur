@@ -35,6 +35,8 @@ template = "Here is a transcript of the meeting (or follow-up):\n'''\n{payload}\
 
 [capture]
 interval = 0.5            # transcript polling interval (seconds)
+# Try to turn Teams live captions on when no caption region is found.
+auto_enable = true
 # Continuously save the finalized transcript plus the current live caption.
 save = true
 directory = "~/.souffleur"
