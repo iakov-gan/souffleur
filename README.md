@@ -40,9 +40,11 @@ pip install -U git+https://github.com/iakov-gan/souffleur.git
 .\build.ps1
 ```
 
-This creates `dist\souffleur.exe` with the Souffleur headphones icon. GitHub
-Actions also builds the executable on every push and attaches it to tagged
-releases.
+This creates `dist\souffleur-windows.zip`, containing `souffleur.exe` with the
+Souffleur headphones icon and its Python runtime. Keep the extracted folder
+together. GitHub Actions builds the ZIP on every push and attaches it to tagged
+releases. The folder-based bundle avoids Windows Application Control blocking
+temporary one-file extraction.
 
 ## Use
 

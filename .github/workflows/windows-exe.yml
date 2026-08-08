@@ -29,12 +29,12 @@ jobs:
 
       - name: Verify executable startup
         shell: pwsh
-        run: .\dist\souffleur.exe --help
+        run: .\dist\souffleur\souffleur.exe --help
 
       - uses: actions/upload-artifact@v4
         with:
           name: souffleur-windows
-          path: dist\souffleur.exe
+          path: dist\souffleur-windows.zip
           if-no-files-found: error
 
       - name: Attach executable to tagged release
@@ -47,4 +47,4 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             gh release create "${{ github.ref_name }}" --generate-notes
           }
-          gh release upload "${{ github.ref_name }}" dist\souffleur.exe --clobber
+          gh release upload "${{ github.ref_name }}" dist\souffleur-windows.zip --clobber

@@ -23,9 +23,8 @@ pyz = PYZ(analysis.pure)
 exe = EXE(
     pyz,
     analysis.scripts,
-    analysis.binaries,
-    analysis.datas,
     [],
+    exclude_binaries=True,
     name="souffleur",
     debug=False,
     bootloader_ignore_signals=False,
@@ -38,4 +37,14 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=["assets/souffleur.ico"],
+)
+
+collect = COLLECT(
+    exe,
+    analysis.binaries,
+    analysis.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name="souffleur",
 )
