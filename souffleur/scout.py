@@ -239,7 +239,13 @@ class ScoutWriter:
         """Start Clawpilot if its executable exists. Returns True if spawned."""
         executable = resolve_clawpilot_exe(self.exe)
         try:
-            subprocess.Popen([executable], close_fds=True)
+            subprocess.Popen(
+                [executable],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                close_fds=True,
+            )
             self.exe = executable
             return True
         except Exception as exc:

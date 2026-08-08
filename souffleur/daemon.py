@@ -68,7 +68,7 @@ combo = "win+ctrl+alt"
 window = 0.25
 
 [clawpilot]
-enabled = true
+enabled = false
 exe = "auto"
 window_title = "Clawpilot"
 foreground_on_start = true
@@ -476,7 +476,11 @@ CONSOLE = Console()
 # prompter
 # --------------------------------------------------------------------------- #
 class Prompter:
-    def __init__(self, cfg: dict):
+    def __init__(
+        self,
+        cfg: dict,
+        clawpilot_enabled: bool | None = None,
+    ):
         self.cfg = cfg
         self.mode = str(_cfg(cfg, "send", "mode", "delta")).lower()
         self.max_chars = int(_cfg(cfg, "send", "max_chars", 12000))
@@ -525,8 +529,13 @@ class Prompter:
             window_title=str(_cfg(cfg, "clawpilot", "window_title", "Clawpilot")),
             restore_clipboard=bool(_cfg(cfg, "send", "restore_clipboard", True)),
         )
-        self.clawpilot_enabled = bool(
-            _cfg(cfg, "clawpilot", "enabled", True)
+        configured_clawpilot = bool(
+            _cfg(cfg, "clawpilot", "enabled", False)
+        )
+        self.clawpilot_enabled = (
+            configured_clawpilot
+            if clawpilot_enabled is None
+            else clawpilot_enabled
         )
         self.foreground_on_start = bool(
             _cfg(cfg, "clawpilot", "foreground_on_start", True)
@@ -681,6 +690,12 @@ def build_parser() -> argparse.ArgumentParser:
         "-c", "--config", type=Path, default=DEFAULT_CONFIG_PATH,
         help=f"path to config.toml (default: {DEFAULT_CONFIG_PATH})",
     )
+    p.add_argument(
+        "--clawpilot",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="enable or disable Clawpilot integration for this run",
+    )
     return p
 
 
@@ -692,7 +707,7 @@ def main(argv: list[str] | None = None) -> int:
         pass
     args = build_parser().parse_args(argv)
     cfg = load_config(args.config)
-    return Prompter(cfg).run()
+    return Prompter(cfg, clawpilot_enabled=args.clawpilot).run()
 
 
 if __name__ == "__main__":

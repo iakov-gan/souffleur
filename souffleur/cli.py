@@ -285,7 +285,10 @@ def cmd_run(args: argparse.Namespace) -> int:
     # writer or Clawpilot automation stack.
     from . import daemon
     cfg = daemon.load_config(args.config or daemon.DEFAULT_CONFIG_PATH)
-    return daemon.Prompter(cfg).run()
+    return daemon.Prompter(
+        cfg,
+        clawpilot_enabled=args.clawpilot,
+    ).run()
 
 
 def _print_options_banner() -> None:
@@ -293,12 +296,12 @@ def _print_options_banner() -> None:
     print(
         "\n"
         "Souffleur — daemon mode (default). Available commands (souffleur <cmd>):\n"
-        "  run       (default)  daemon: Teams transcript -> Clawpilot on a hotkey\n"
+        "  run       (default)  capture + save Teams captions\n"
         "  capture              just tail live captions to stdout\n"
         "  discover             diagnose windows + caption region (--tree for subtree)\n"
         "  doctor               one-shot readiness check\n"
         "  -h / --help          full option reference\n"
-        "Daemon flags: -c/--config PATH  (config.toml: sets hotkey, template, etc.)\n"
+        "Daemon flags: -c/--config PATH  --clawpilot / --no-clawpilot\n"
     )
 
 
@@ -342,6 +345,12 @@ def build_parser() -> argparse.ArgumentParser:
              "(default).")
     rn.add_argument("-c", "--config", type=Path, default=None,
                     help="path to config.toml (default: ./config.toml).")
+    rn.add_argument(
+        "--clawpilot",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="enable or disable Clawpilot integration for this run",
+    )
     rn.set_defaults(func=cmd_run)
 
     return p

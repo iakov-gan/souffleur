@@ -16,7 +16,7 @@ combo = "win+ctrl+alt"
 window = 0.25
 
 [clawpilot]
-enabled = true
+enabled = false
 exe = "auto"
 window_title = "Clawpilot"
 # Launch + foreground Clawpilot when the prompter starts.

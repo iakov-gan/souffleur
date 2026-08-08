@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from souffleur.daemon import MeetingRecorder, safe_filename_component
+from souffleur.daemon import MeetingRecorder, Prompter, safe_filename_component
 from souffleur.teams_ui import (
     TranscriptReader,
     enable_live_captions,
@@ -46,6 +46,15 @@ class FakeControl:
 
 
 class MeetingRecordingTests(unittest.TestCase):
+    def test_clawpilot_is_disabled_by_default_and_can_be_overridden(self):
+        self.assertFalse(Prompter({}).clawpilot_enabled)
+        self.assertFalse(
+            Prompter(
+                {"clawpilot": {"enabled": True}},
+                clawpilot_enabled=False,
+            ).clawpilot_enabled
+        )
+
     def test_excludes_normal_chat_windows_from_meeting_discovery(self):
         normal_chat = FakeControl(
             children=[

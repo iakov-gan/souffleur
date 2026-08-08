@@ -260,7 +260,7 @@ Auto-created with defaults on first run. Key settings:
 |---|---|---|
 | `hotkey.combo` | `win+ctrl+alt` | Global trigger. Shorthand: `+`-separated modifiers/keys (`win+ctrl+alt`, `ctrl+f8`, `win+ctrl+alt+z`). `win` = Windows key. Avoid Ctrl+Shift (language switcher). A modifier-only chord fires once per hold (release one key to re-fire). |
 | `hotkey.window` | `0.25` | Seconds tolerance for a "rolling" press — how far apart the chord keys may land and still count as one press. Raise if presses get missed; lower to reduce accidental triggers. |
-| `clawpilot.enabled` | `true` | Enable hotkey sending. If Clawpilot is not installed, Souffleur automatically continues in capture-only mode. Set to `false` to always capture without Clawpilot. |
+| `clawpilot.enabled` | `false` | Enable optional hotkey sending to Clawpilot. Souffleur captures and saves captions without launching Clawpilot by default. |
 | `clawpilot.exe` | `auto` | App to launch if not running. Auto-detects PATH, Program Files, per-user installs, and Windows App Paths. Set an explicit path if needed. |
 | `clawpilot.window_title` | `Clawpilot` | Window title used to find the app (matched case-insensitively as a substring). |
 | `clawpilot.foreground_on_start` | `true` | Bring Clawpilot to front at startup. |
