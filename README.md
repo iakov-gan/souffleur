@@ -34,6 +34,16 @@ Install straight from GitHub with pip:
 pip install -U git+https://github.com/iakov-gan/souffleur.git
 ```
 
+### Build the Windows executable
+
+```powershell
+.\build.ps1
+```
+
+This creates `dist\souffleur.exe` with the Souffleur headphones icon. GitHub
+Actions also builds the executable on every push and attaches it to tagged
+releases.
+
 ## Use
 
 1. Join your Teams meeting and **turn on live captions**
