@@ -1,5 +1,6 @@
 param(
-    [switch]$SkipInstall
+    [switch]$SkipInstall,
+    [switch]$RequireInstaller
 )
 
 $ErrorActionPreference = "Stop"
@@ -33,3 +34,24 @@ Compress-Archive -Path "dist\souffleur" -DestinationPath $archive
 
 Write-Host "Built $executable"
 Write-Host "Packaged $archive"
+
+$isccCandidates = @(
+    (Get-Command ISCC.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue),
+    "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+    "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+    "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+) | Where-Object { $_ -and (Test-Path $_) }
+
+$iscc = $isccCandidates | Select-Object -First 1
+if ($iscc) {
+    $version = python -c "import souffleur; print(souffleur.__version__)"
+    & $iscc "/DMyAppVersion=$version" /Qp installer.iss
+    if ($LASTEXITCODE -ne 0) {
+        throw "Inno Setup build failed."
+    }
+    Write-Host "Packaged $(Join-Path $PSScriptRoot 'dist\souffleur-setup.exe')"
+} elseif ($RequireInstaller) {
+    throw "Inno Setup 6 is required to build the installer."
+} else {
+    Write-Warning "Inno Setup 6 not found; skipped souffleur-setup.exe."
+}

@@ -23,18 +23,38 @@ jobs:
           python-version: "3.13"
           cache: pip
 
-      - name: Build executable
+      - name: Install Inno Setup
         shell: pwsh
-        run: .\build.ps1
+        run: choco install innosetup --no-progress --yes
+
+      - name: Build executable and installer
+        shell: pwsh
+        run: .\build.ps1 -RequireInstaller
 
       - name: Verify executable startup
         shell: pwsh
         run: .\dist\souffleur\souffleur.exe --help
 
+      - name: Verify installer
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:RUNNER_TEMP "SouffleurTest"
+          $installer = Start-Process `
+            -FilePath .\dist\souffleur-setup.exe `
+            -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=$installDir") `
+            -Wait `
+            -PassThru
+          if ($installer.ExitCode -ne 0) {
+            throw "Installer returned exit code $($installer.ExitCode)."
+          }
+          & "$installDir\souffleur.exe" --help
+
       - uses: actions/upload-artifact@v4
         with:
           name: souffleur-windows
-          path: dist\souffleur-windows.zip
+          path: |
+            dist\souffleur-windows.zip
+            dist\souffleur-setup.exe
           if-no-files-found: error
 
       - name: Attach executable to tagged release
@@ -47,4 +67,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             gh release create "${{ github.ref_name }}" --generate-notes
           }
-          gh release upload "${{ github.ref_name }}" dist\souffleur-windows.zip --clobber
+          gh release upload "${{ github.ref_name }}" `
+            dist\souffleur-windows.zip `
+            dist\souffleur-setup.exe `
+            --clobber

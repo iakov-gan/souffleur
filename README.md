@@ -41,10 +41,11 @@ pip install -U git+https://github.com/iakov-gan/souffleur.git
 ```
 
 This creates `dist\souffleur-windows.zip`, containing `souffleur.exe` with the
-Souffleur headphones icon and its Python runtime. Keep the extracted folder
-together. GitHub Actions builds the ZIP on every push and attaches it to tagged
-releases. The folder-based bundle avoids Windows Application Control blocking
-temporary one-file extraction.
+Souffleur headphones icon and its Python runtime. With Inno Setup 6 installed,
+it also creates `dist\souffleur-setup.exe`, a per-user installer that needs no
+administrator rights and adds Start Menu shortcuts. GitHub Actions builds and
+tests both packages for every release. Both avoid Windows Application Control
+blocking temporary one-file extraction.
 
 ## Use
 
