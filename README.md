@@ -84,7 +84,9 @@ The transcript is also saved continuously under `~/.souffleur`. The filename
 uses the meeting start time and the Teams window title; characters that Windows
 does not allow in filenames are replaced safely. Saving is enabled by default.
 When the active Teams meeting changes, Souffleur closes out the current
-snapshot and starts a separate file for the new meeting.
+snapshot and starts a separate file for the new meeting. If Souffleur restarts
+during the same meeting, it resumes the existing file, ignores caption lines
+Teams replays, and flushes every finalized line to disk immediately.
 
 ### 3. Press the hotkey
 

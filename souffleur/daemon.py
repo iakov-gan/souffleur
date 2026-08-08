@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import json
 import os
 import re
 import sys
@@ -124,6 +125,10 @@ def safe_filename_component(value: str, fallback: str = "MEETING") -> str:
 class MeetingRecorder:
     """Persist a live Markdown snapshot of the current meeting transcript."""
 
+    RESUME_WINDOW_SECONDS = 12 * 60 * 60
+    MEETING_KEY_PREFIX = "<!-- souffleur-meeting-key: "
+    LIVE_MARKER = "<!-- souffleur-live-caption -->"
+
     def __init__(self, directory: str | Path, started_at: datetime | None = None):
         self.directory = Path(os.path.expandvars(str(directory))).expanduser()
         self.started_at = started_at or datetime.now()
@@ -132,7 +137,70 @@ class MeetingRecorder:
         self.meeting_id: tuple | None = None
         self.finalized: list[str] = []
         self.live: str | None = None
+        self._meeting_key = ""
+        self._resume_tail: list[str] = []
         self._lock = threading.Lock()
+
+    @staticmethod
+    def _key(name: str, meeting_id: tuple | None) -> str:
+        return json.dumps(
+            [name, list(meeting_id) if meeting_id else None],
+            ensure_ascii=True,
+            separators=(",", ":"),
+        )
+
+    def _read_existing(
+        self, path: Path
+    ) -> tuple[str | None, datetime | None, list[str]]:
+        try:
+            content = path.read_text(encoding="utf-8")
+        except OSError:
+            return None, None, []
+
+        key = None
+        started_at = None
+        for line in content.splitlines()[:8]:
+            if line.startswith(self.MEETING_KEY_PREFIX) and line.endswith(" -->"):
+                key = line[len(self.MEETING_KEY_PREFIX):-4]
+            elif line.startswith("- Started: "):
+                try:
+                    started_at = datetime.fromisoformat(line[len("- Started: "):])
+                except ValueError:
+                    pass
+
+        marker = "## Transcript\n\n"
+        _, found, body = content.partition(marker)
+        if not found:
+            return key, started_at, []
+        body = body.partition(f"\n\n{self.LIVE_MARKER}\n")[0].strip()
+        return key, started_at, body.split("\n\n") if body else []
+
+    def _find_resume_path(self, meeting_key: str) -> Path | None:
+        now = datetime.now().timestamp()
+        exact_matches = []
+        legacy_matches = []
+        for path in self.directory.glob("*.md"):
+            key, _, _ = self._read_existing(path)
+            try:
+                modified = path.stat().st_mtime
+            except OSError:
+                continue
+            if (
+                key == meeting_key
+                and now - modified <= self.RESUME_WINDOW_SECONDS
+            ):
+                exact_matches.append((modified, path))
+            elif key is None and now - modified <= self.RESUME_WINDOW_SECONDS:
+                try:
+                    with path.open(encoding="utf-8") as stream:
+                        first_line = stream.readline().rstrip()
+                except OSError:
+                    continue
+                if first_line == f"# {self.meeting_name}":
+                    legacy_matches.append((modified, path))
+
+        matches = exact_matches or legacy_matches
+        return max(matches, default=(0, None))[1]
 
     def start_meeting(
         self,
@@ -141,16 +209,27 @@ class MeetingRecorder:
         started_at: datetime | None = None,
     ) -> Path:
         with self._lock:
-            identity = meeting_id or ("title", name)
+            identity = (name, meeting_id)
             if self.path is not None and identity == self.meeting_id:
                 return self.path
 
             self.started_at = started_at or datetime.now()
             self.meeting_name = name or "Microsoft Teams Meeting"
             self.meeting_id = identity
+            self._meeting_key = self._key(self.meeting_name, meeting_id)
             self.finalized.clear()
             self.live = None
+            self._resume_tail.clear()
             self.directory.mkdir(parents=True, exist_ok=True)
+
+            resumed = self._find_resume_path(self._meeting_key)
+            if resumed is not None:
+                _, original_start, self.finalized = self._read_existing(resumed)
+                if original_start is not None:
+                    self.started_at = original_start
+                self._resume_tail = self.finalized[-20:]
+                self.path = resumed
+                return resumed
 
             safe_name = safe_filename_component(self.meeting_name)
             stamp = self.started_at.strftime("%Y-%m-%d-%H-%M")
@@ -160,43 +239,56 @@ class MeetingRecorder:
                 candidate = self.directory / f"{stamp}-{safe_name}-{suffix}.md"
                 suffix += 1
             self.path = candidate
-            self._write()
+            self._write(durable=True)
             return candidate
 
     def add_final(self, line: str) -> None:
         with self._lock:
             if self.path is None:
                 return
+            if self._resume_tail:
+                try:
+                    replay_index = self._resume_tail.index(line)
+                except ValueError:
+                    self._resume_tail.clear()
+                else:
+                    del self._resume_tail[:replay_index + 1]
+                    return
             self.finalized.append(line)
             if self.live == line:
                 self.live = None
-            self._write()
+            self._write(durable=True)
 
     def set_live(self, line: str | None) -> None:
         with self._lock:
             if self.path is None:
                 return
             self.live = line
-            self._write()
+            self._write(durable=False)
 
-    def _write(self) -> None:
+    def _write(self, *, durable: bool) -> None:
         if self.path is None:
             return
         path = self.path
         lines = list(self.finalized)
-        if self.live and (not lines or lines[-1] != self.live):
-            lines.append(self.live)
         body = "\n\n".join(lines)
         content = (
             f"# {self.meeting_name}\n\n"
             f"- Started: {self.started_at.astimezone().isoformat(timespec='seconds')}\n"
             f"- Source: Microsoft Teams live captions\n\n"
+            f"{self.MEETING_KEY_PREFIX}{self._meeting_key} -->\n\n"
             f"## Transcript\n\n{body}"
         )
         if body:
             content += "\n"
+        if self.live and (not lines or lines[-1] != self.live):
+            content += f"\n{self.LIVE_MARKER}\n{self.live}\n"
         temp_path = path.with_suffix(path.suffix + ".tmp")
-        temp_path.write_text(content, encoding="utf-8")
+        with temp_path.open("w", encoding="utf-8", newline="\n") as stream:
+            stream.write(content)
+            stream.flush()
+            if durable:
+                os.fsync(stream.fileno())
         temp_path.replace(path)
 
 

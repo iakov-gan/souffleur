@@ -506,7 +506,7 @@ class TranscriptReader:
         name, meeting_id = meeting_context_for_control(container)
         if not name:
             return False
-        identity = meeting_id or ("title", name)
+        identity = (name, meeting_id)
         if identity == self._meeting_id:
             return False
         self._meeting_id = identity
