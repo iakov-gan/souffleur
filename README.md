@@ -23,12 +23,9 @@ flowchart LR
 
 ### 1. Windows installer (recommended, no Python needed)
 
-Download **`souffleur-setup.exe`** from the
-[**Releases page**](https://github.com/iakov-gan/souffleur/releases/latest) and run it —
+* Download **`souffleur-setup.exe`** from the
+[**Releases page**](https://github.com/iakov-gan/souffleur/releases/latest) and run it -
 per-user, no administrator rights, adds Start Menu shortcuts.
-
-Prefer no installer? Grab **`souffleur-windows.zip`** from the same page, unzip, and run
-`souffleur.exe`. Both bundle their own Python runtime.
 
 ### 2. Python (pip)
 
@@ -132,7 +129,7 @@ language change or panel toggle rebuilds the subtree).
 If a Teams update changes these element names, run `souffleur discover --tree` and pass
 `--container-name` / `--container-aid` explicitly.
 
-## Development
+## Packaging
 
 ```powershell
 .\build.ps1
