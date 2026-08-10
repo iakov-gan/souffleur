@@ -23,9 +23,8 @@ flowchart LR
 
 ### 1. Windows installer (recommended, no Python needed)
 
-* Download **`souffleur-setup.exe`** from the
-[**Releases page**](https://github.com/iakov-gan/souffleur/releases/latest) and run it -
-per-user, no administrator rights, adds Start Menu shortcuts.
+* Download **`souffleur-setup.exe`** from the [**Releases**](https://github.com/iakov-gan/souffleur/releases/latest) and run it
+* Per-user, no administrator rights, adds Start Menu shortcuts.
 
 ### 2. Python (pip)
 
